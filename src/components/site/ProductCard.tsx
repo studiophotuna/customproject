@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { formatPrice } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
@@ -34,9 +34,18 @@ export function ProductCard({ product }: { product: Product }) {
         <p className="text-sm font-semibold text-brand">
           {formatPrice(product.price, product.currency)}
         </p>
-        <Button variant="outline" size="sm" className="mt-auto w-full uppercase">
-          Add to Cart
-        </Button>
+        <AddToCartButton
+          className="mt-auto w-full"
+          disabled={!product.inStock}
+          item={{
+            productId: product.id,
+            slug: product.slug,
+            name: product.name,
+            price: product.price,
+            currency: product.currency,
+            imageUrl: product.imageUrl,
+          }}
+        />
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import { Button } from "@/components/ui/Button";
+import { ProductActions } from "@/components/cart/ProductActions";
 import { getProductBySlug } from "@/lib/data";
 import { formatPrice } from "@/lib/utils";
 
@@ -65,17 +65,17 @@ export default async function ProductPage({ params }: Params) {
             )}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" disabled={!product.inStock} className="uppercase">
-              Add to Cart
-            </Button>
-            <Button variant="outline" size="lg" className="uppercase">
-              Buy Now
-            </Button>
-          </div>
-          <p className="mt-4 text-xs text-muted">
-            Cart &amp; checkout are wired up in a later step.
-          </p>
+          <ProductActions
+            inStock={product.inStock}
+            item={{
+              productId: product.id,
+              slug: product.slug,
+              name: product.name,
+              price: product.price,
+              currency: product.currency,
+              imageUrl: product.imageUrl,
+            }}
+          />
         </div>
       </div>
     </Container>

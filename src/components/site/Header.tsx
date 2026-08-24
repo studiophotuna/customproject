@@ -6,6 +6,7 @@ import { ChevronDown, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
 import { Logo } from "@/components/site/Logo";
+import { useCart } from "@/components/cart/CartProvider";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
-  const cartCount = 0;
+  const { count } = useCart();
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-background/95 backdrop-blur">
@@ -77,9 +78,11 @@ export function Header() {
             className="relative rounded-md p-2 text-foreground hover:bg-surface"
           >
             <ShoppingBag className="h-5 w-5" />
-            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-semibold text-on-brand">
-              {cartCount}
-            </span>
+            {count > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-semibold text-on-brand">
+                {count}
+              </span>
+            )}
           </Link>
           <ButtonLink href="/shop" size="sm" className="ml-1 hidden sm:inline-flex">
             Order Now
