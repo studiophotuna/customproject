@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/*
+ * Design system.
+ *
+ * Default brand tokens live in :root as fallbacks. At runtime the root layout
+ * injects a <style> that overrides these from the active Theme (see
+ * config/theme.ts), which is what makes the whole site rebrandable per client.
+ * The @theme block maps those CSS variables to Tailwind utilities, so
+ * `bg-brand`, `text-muted`, `border-line`, `rounded-card`, etc. all work.
+ */
+
+:root {
+  --brand: #158a8a;
+  --brand-dark: #0e6b6b;
+  --brand-light: #e3f1f0;
+  --on-brand: #ffffff;
+  --background: #ffffff;
+  --surface: #faf7f2;
+  --surface-muted: #f3ede4;
+  --foreground: #1f2937;
+  --muted: #6b7280;
+  --border: #e7e2d8;
+  --accent: #0fb5ac;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-light: var(--brand-light);
+  --color-on-brand: var(--on-brand);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+
+  --radius-card: var(--radius);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-script: var(--font-script);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Section heading treatment used across the storefront (serif + centered rule). */
+.section-title {
+  font-family: var(--font-serif), Georgia, serif;
+  letter-spacing: 0.02em;
+}
+
+/* Small decorative divider (the little heart-flanked line under headings). */
+.rule {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--brand);
+}
+.rule::before,
+.rule::after {
+  content: "";
+  height: 1px;
+  width: 2.5rem;
+  background: currentColor;
+  opacity: 0.5;
+}

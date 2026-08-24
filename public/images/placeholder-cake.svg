@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" role="img" aria-label="Cake placeholder">
+  <rect width="400" height="400" fill="#f3ede4"/>
+  <g transform="translate(200 220)" fill="none" stroke="#158a8a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-90 40 h180 v-70 a90 30 0 0 0 -180 0 z" fill="#e3f1f0"/>
+    <ellipse cx="0" cy="-30" rx="90" ry="30" fill="#ffffff"/>
+    <path d="M-90 -30 q45 25 90 0 q45 -25 90 0" />
+    <line x1="0" y1="-30" x2="0" y2="-90"/>
+    <circle cx="0" cy="-96" r="10" fill="#0fb5ac" stroke="none"/>
+  </g>
+  <text x="200" y="330" text-anchor="middle" font-family="Georgia, serif" font-size="20" fill="#6b7280">Cake image</text>
+</svg>
