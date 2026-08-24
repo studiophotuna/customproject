@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# Public, non-secret values only (Supabase URL + anon/publishable key are
+# designed to be exposed in the browser; RLS enforces security). Secrets
+# (service-role, Stripe) are NOT here — set those in the Vercel dashboard.
+!.env.production
 
 # vercel
 .vercel
