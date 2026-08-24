@@ -15,10 +15,12 @@
  * server-only secrets and belong in the deployment's environment variables.
  */
 
+// Use `||` (not `??`): some platforms inject unset vars as empty strings,
+// which `??` would not replace, leaving the Supabase client without a URL/key.
 export const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
   "https://edlhmlwsjcawramjxpuu.supabase.co";
 
 export const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   "sb_publishable_2OoAIxEQoHAdAOOjL4q6AQ_RwSHiQkn";
