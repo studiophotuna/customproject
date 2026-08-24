@@ -3,15 +3,10 @@ import Link from "next/link";
 import { Bike, MapPin } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
-import { siteConfig } from "@/config/site";
+import { getDelivery } from "@/lib/data";
 
-const deliveryPoints = [
-  "Pickup Available",
-  "Delivery Available",
-  "Delivery charges apply based on distance.",
-];
-
-export function InstagramDelivery() {
+export async function InstagramDelivery() {
+  const delivery = await getDelivery();
   return (
     <section className="py-16">
       <Container className="grid gap-6 lg:grid-cols-3">
@@ -55,7 +50,7 @@ export function InstagramDelivery() {
           </h3>
           <Bike className="my-4 h-8 w-8 text-brand" />
           <ul className="space-y-2 text-sm text-foreground">
-            {deliveryPoints.map((p) => (
+            {delivery.points.map((p) => (
               <li key={p} className="flex items-start gap-2">
                 <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 {p}
@@ -67,7 +62,7 @@ export function InstagramDelivery() {
           </ButtonLink>
           <p className="mt-4 flex items-center gap-1 text-xs text-muted">
             <MapPin className="h-3.5 w-3.5 text-brand" />
-            {siteConfig.location}
+            {delivery.location}
           </p>
         </div>
       </Container>

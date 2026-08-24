@@ -1,10 +1,10 @@
 import { Quote, Star } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/site/SectionHeading";
-import { getTestimonials } from "@/lib/seed";
+import { getTestimonials } from "@/lib/data";
 
-export function Testimonials() {
-  const testimonials = getTestimonials();
+export async function Testimonials() {
+  const testimonials = await getTestimonials();
   return (
     <section className="bg-surface py-16">
       <Container>

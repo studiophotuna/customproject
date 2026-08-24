@@ -1,6 +1,6 @@
 import { CakeSlice, Heart, Leaf, Sparkles } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import { getFeatureHighlights } from "@/lib/seed";
+import { getFeatureHighlights } from "@/lib/data";
 
 const icons = [CakeSlice, Sparkles, Leaf, Heart];
 

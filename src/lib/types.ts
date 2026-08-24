@@ -38,3 +38,35 @@ export type FeatureHighlight = {
   title: string;
   description: string;
 };
+
+// --- Settings (parsed from the site_settings JSON store) ---
+
+export type BrandSettings = {
+  name: string;
+  nameAccent: string;
+  tagline: string;
+  description: string;
+  location: string;
+  currency: string;
+  announcement: string;
+};
+
+export type ContactSettings = {
+  address: string;
+  phone: string;
+  email: string;
+  hours: string;
+};
+
+export type HeroSettings = {
+  title: string;
+  titleAccent: string;
+  subtitle: string;
+  description: string;
+  imageUrl: string;
+};
+
+export type DeliverySettings = {
+  points: string[];
+  location: string;
+};

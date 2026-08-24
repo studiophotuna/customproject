@@ -1,10 +1,10 @@
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/site/SectionHeading";
 import { ProductCard } from "@/components/site/ProductCard";
-import { getFeaturedProducts } from "@/lib/seed";
+import { getFeaturedProducts } from "@/lib/data";
 
-export function FeaturedProducts() {
-  const products = getFeaturedProducts();
+export async function FeaturedProducts() {
+  const products = await getFeaturedProducts();
   return (
     <section className="bg-surface py-16">
       <Container>

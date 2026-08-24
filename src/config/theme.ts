@@ -67,10 +67,5 @@ export function themeToCssVars(theme: Theme): Record<string, string> {
   };
 }
 
-/**
- * Resolve the active theme. For now this returns the default; in Phase 2+ it
- * will read overrides from the database and merge them over `defaultTheme`.
- */
-export function getActiveTheme(): Theme {
-  return defaultTheme;
-}
+// The active theme (DB overrides merged over `defaultTheme`) is resolved by
+// `getTheme()` in lib/data.ts and injected by the root layout.

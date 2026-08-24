@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import { siteConfig } from "@/config/site";
-import { getActiveTheme, themeToCssVars } from "@/config/theme";
+import { themeToCssVars } from "@/config/theme";
+import { getTheme } from "@/lib/data";
 
 const sans = Inter({
   variable: "--font-sans",
@@ -30,10 +31,10 @@ export const metadata: Metadata = {
   description: siteConfig.description,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  // Serialize the active theme into CSS variables. This is the seam that later
-  // reads from the database so the admin panel can rebrand the whole site.
-  const themeVars = themeToCssVars(getActiveTheme());
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Serialize the active theme (DB overrides merged over defaults) into CSS
+  // variables, so the admin panel can rebrand the whole site without a deploy.
+  const themeVars = themeToCssVars(await getTheme());
   const themeCss = `:root{${Object.entries(themeVars)
     .map(([k, v]) => `${k}:${v}`)
     .join(";")}}`;

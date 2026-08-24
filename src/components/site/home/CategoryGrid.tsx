@@ -3,10 +3,10 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/site/SectionHeading";
-import { getCategories } from "@/lib/seed";
+import { getCategories } from "@/lib/data";
 
-export function CategoryGrid() {
-  const categories = getCategories();
+export async function CategoryGrid() {
+  const categories = await getCategories();
   return (
     <section className="py-16">
       <Container>

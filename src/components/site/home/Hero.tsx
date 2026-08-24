@@ -1,24 +1,25 @@
 import Image from "next/image";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
-import { siteConfig } from "@/config/site";
+import { getHero } from "@/lib/data";
 
-export function Hero() {
+export async function Hero() {
+  const hero = await getHero();
   return (
     <section className="bg-surface">
       <Container className="grid items-center gap-8 py-12 lg:grid-cols-2 lg:py-20">
         <div>
           <h1 className="section-title text-4xl leading-tight text-brand sm:text-5xl">
-            {siteConfig.name}
+            {hero.title}
             <span
               className="mt-1 block text-5xl text-foreground sm:text-6xl"
               style={{ fontFamily: "var(--font-script), cursive" }}
             >
-              {siteConfig.nameAccent}
+              {hero.titleAccent}
             </span>
           </h1>
-          <p className="mt-6 max-w-md text-lg text-foreground">{siteConfig.tagline}</p>
-          <p className="mt-3 max-w-md text-sm text-muted">{siteConfig.description}</p>
+          <p className="mt-6 max-w-md text-lg text-foreground">{hero.subtitle}</p>
+          <p className="mt-3 max-w-md text-sm text-muted">{hero.description}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <ButtonLink href="/shop" size="lg" className="uppercase">
               Shop Cakes
@@ -30,7 +31,7 @@ export function Hero() {
         </div>
         <div className="relative aspect-square w-full overflow-hidden rounded-card">
           <Image
-            src="/images/placeholder-cake.svg"
+            src={hero.imageUrl}
             alt="Featured handcrafted cake"
             fill
             priority
