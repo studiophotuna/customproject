@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { FacebookIcon, InstagramIcon, TikTokIcon } from "@/components/ui/SocialIcons";
+import { NewsletterForm } from "@/components/site/forms/NewsletterForm";
 import { Logo } from "@/components/site/Logo";
 import { siteConfig } from "@/config/site";
 
@@ -72,20 +73,7 @@ export function Footer() {
           <p className="mb-3 text-sm text-muted">
             Be the first to know about new flavors, offers and more!
           </p>
-          <form className="flex gap-2">
-            <input
-              type="email"
-              required
-              placeholder="Enter your email"
-              className="min-w-0 flex-1 rounded-card border border-line bg-background px-3 py-2 text-sm outline-none focus:border-brand"
-            />
-            <button
-              type="submit"
-              className="rounded-card bg-brand px-4 py-2 text-sm text-on-brand hover:bg-brand-dark"
-            >
-              →
-            </button>
-          </form>
+          <NewsletterForm />
         </div>
       </Container>
 
