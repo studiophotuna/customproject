@@ -2,7 +2,6 @@
 
 import { useActionState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
-import { InstagramIcon } from "@/components/ui/SocialIcons";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Field";
 import {
@@ -28,12 +27,7 @@ export function InstagramConnect({ status }: { status: Status }) {
   const [busy, start] = useTransition();
 
   return (
-    <div className="rounded-card border border-line bg-background p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <InstagramIcon className="h-5 w-5 text-brand" />
-        <h2 className="font-semibold text-foreground">Instagram Feed</h2>
-      </div>
-
+    <div>
       <p className="mb-4 text-sm text-muted">
         Auto-pull recent posts from your Instagram <strong>Business/Creator</strong>{" "}
         account. Paste a long-lived access token from your Meta app, then Save &amp;

@@ -4,6 +4,10 @@ import { NavEditor } from "@/components/admin/NavEditor";
 import { FooterEditor } from "@/components/admin/FooterEditor";
 import { LogoUpload } from "@/components/admin/LogoUpload";
 import { InstagramConnect } from "@/components/admin/InstagramConnect";
+import { InstagramModeToggle } from "@/components/admin/InstagramModeToggle";
+import { ManualInstagramGallery } from "@/components/admin/ManualInstagramGallery";
+import { InstagramIcon } from "@/components/ui/SocialIcons";
+import { getInstagramMode, getInstagramManualItems } from "@/lib/data";
 import { getInstagramStatus } from "./actions";
 import {
   getBrand,
@@ -32,7 +36,11 @@ export default async function SettingsPage() {
       getSocials(),
       getLogoUrl(),
     ]);
-  const igStatus = await getInstagramStatus();
+  const [igStatus, igMode, igManual] = await Promise.all([
+    getInstagramStatus(),
+    getInstagramMode(),
+    getInstagramManualItems(),
+  ]);
 
   return (
     <>
@@ -51,7 +59,18 @@ export default async function SettingsPage() {
           initialNewsletter={footer.showNewsletter}
         />
 
-        <InstagramConnect status={igStatus} />
+        <div className="rounded-card border border-line bg-background p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <InstagramIcon className="h-5 w-5 text-brand" />
+            <h2 className="font-semibold text-foreground">Instagram Feed</h2>
+          </div>
+          <InstagramModeToggle mode={igMode} />
+          {igMode === "manual" ? (
+            <ManualInstagramGallery items={igManual} />
+          ) : (
+            <InstagramConnect status={igStatus} />
+          )}
+        </div>
 
         <SettingsForm
           settingKey="socials"

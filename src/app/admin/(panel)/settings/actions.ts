@@ -178,6 +178,64 @@ export async function disconnectInstagram(): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+/** Choose whether the Instagram feed is auto-synced or manually curated. */
+export async function saveInstagramMode(mode: string): Promise<void> {
+  const value = mode === "manual" ? "manual" : "auto";
+  await upsert("instagram_mode", { mode: value });
+}
+
+/** Add one manually-curated feed image (upload + optional link/caption). */
+export async function addManualInstagramImage(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const file = form.get("image") as File | null;
+  if (!file || file.size === 0) return { error: "Please choose an image." };
+
+  const supabase = await createClient();
+  let url: string | null;
+  try {
+    url = await uploadMedia(supabase, file, "instagram");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  if (!url) return { error: "Upload failed. Please try again." };
+
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "instagram_manual")
+    .maybeSingle();
+  const items = ((data?.value as { items?: unknown[] })?.items ?? []) as unknown[];
+
+  const next = [
+    ...items,
+    {
+      id: crypto.randomUUID(),
+      mediaUrl: url,
+      permalink: s(form.get("permalink")),
+      caption: s(form.get("caption")),
+    },
+  ];
+
+  const res = await upsert("instagram_manual", { items: next });
+  return res?.error ? res : { ok: true, message: "Image added." };
+}
+
+/** Remove one manually-curated feed image by id. */
+export async function removeManualInstagramImage(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "instagram_manual")
+    .maybeSingle();
+  const items = ((data?.value as { items?: { id?: string }[] })?.items ?? []).filter(
+    (it) => it.id !== id,
+  );
+  await upsert("instagram_manual", { items });
+}
+
 /** Connection status for the admin UI. */
 export async function getInstagramStatus(): Promise<{
   connected: boolean;

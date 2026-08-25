@@ -263,8 +263,27 @@ export async function getSocials(): Promise<SocialSettings> {
   };
 }
 
-/** Cached Instagram feed (populated by the admin sync). Public + fast to read. */
+export type InstagramMode = "auto" | "manual";
+
+/** Whether the IG feed is auto-synced from the Graph API or manually curated. */
+export async function getInstagramMode(): Promise<InstagramMode> {
+  const v = await getSetting<{ mode?: string }>("instagram_mode");
+  return v?.mode === "manual" ? "manual" : "auto";
+}
+
+/** Manually-curated feed items (uploaded by the admin). */
+export async function getInstagramManualItems(): Promise<InstagramFeedItem[]> {
+  const v = await getSetting<{ items?: InstagramFeedItem[] }>("instagram_manual");
+  return v?.items ?? [];
+}
+
+/**
+ * The feed the storefront renders. In manual mode it returns the admin's
+ * curated images; in auto mode, the Graph-API-synced cache.
+ */
 export async function getInstagramFeed(): Promise<InstagramFeedItem[]> {
+  const mode = await getInstagramMode();
+  if (mode === "manual") return getInstagramManualItems();
   const v = await getSetting<{ items?: InstagramFeedItem[] }>("instagram_feed");
   return v?.items ?? [];
 }
