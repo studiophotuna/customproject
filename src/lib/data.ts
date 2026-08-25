@@ -14,6 +14,7 @@ import type {
   NavItem,
   FooterSettings,
   SocialSettings,
+  InstagramFeedItem,
 } from "@/lib/types";
 import type { Tables } from "@/lib/database.types";
 
@@ -260,6 +261,12 @@ export async function getSocials(): Promise<SocialSettings> {
     facebook: v?.facebook ?? "",
     tiktok: v?.tiktok ?? "",
   };
+}
+
+/** Cached Instagram feed (populated by the admin sync). Public + fast to read. */
+export async function getInstagramFeed(): Promise<InstagramFeedItem[]> {
+  const v = await getSetting<{ items?: InstagramFeedItem[] }>("instagram_feed");
+  return v?.items ?? [];
 }
 
 // --- Static content (not yet in the DB) ---

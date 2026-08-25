@@ -4,7 +4,7 @@ import { Bike, CheckCircle2, MapPin } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
-import { getBrand, getDelivery, getSocials } from "@/lib/data";
+import { getBrand, getDelivery, getInstagramFeed, getSocials } from "@/lib/data";
 
 /** Derive a display handle from an Instagram URL, else a sensible fallback. */
 function handleFromUrl(url: string, brandName: string): string {
@@ -14,13 +14,16 @@ function handleFromUrl(url: string, brandName: string): string {
 }
 
 export async function InstagramDelivery() {
-  const [delivery, socials, brand] = await Promise.all([
+  const [delivery, socials, brand, feed] = await Promise.all([
     getDelivery(),
     getSocials(),
     getBrand(),
+    getInstagramFeed(),
   ]);
 
   const igUrl = socials.instagram || "#";
+  // Use real posts when the feed has been synced; otherwise show placeholders.
+  const tiles = feed.length > 0 ? feed.slice(0, 8) : null;
   const handle = handleFromUrl(socials.instagram, `${brand.name}${brand.nameAccent}`);
   const city = (delivery.location || brand.location).split(",")[0].trim();
 
@@ -48,26 +51,30 @@ export async function InstagramDelivery() {
           </div>
 
           <div className="mt-6 grid grid-cols-4 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Link
-                key={i}
-                href={igUrl}
-                target={igUrl === "#" ? undefined : "_blank"}
-                rel="noopener noreferrer"
-                className="group relative aspect-square overflow-hidden rounded-xl bg-surface-muted"
-              >
-                <Image
-                  src="/images/placeholder-cake.svg"
-                  alt="Instagram post"
-                  fill
-                  sizes="(max-width: 640px) 25vw, 140px"
-                  className="object-cover transition duration-300 group-hover:scale-110"
-                />
-                <span className="absolute inset-0 grid place-items-center bg-brand/0 opacity-0 transition group-hover:bg-brand/40 group-hover:opacity-100">
-                  <InstagramIcon className="h-6 w-6 text-white" />
-                </span>
-              </Link>
-            ))}
+            {(tiles ?? Array.from({ length: 8 }).map(() => null)).map((item, i) => {
+              const href = item?.permalink ?? igUrl;
+              return (
+                <Link
+                  key={item?.id ?? i}
+                  href={href}
+                  target={href === "#" ? undefined : "_blank"}
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square overflow-hidden rounded-xl bg-surface-muted"
+                >
+                  <Image
+                    src={item?.mediaUrl ?? "/images/placeholder-cake.svg"}
+                    alt={item?.caption?.slice(0, 80) || "Instagram post"}
+                    fill
+                    sizes="(max-width: 640px) 25vw, 140px"
+                    className="object-cover transition duration-300 group-hover:scale-110"
+                    unoptimized={Boolean(item)}
+                  />
+                  <span className="absolute inset-0 grid place-items-center bg-brand/0 opacity-0 transition group-hover:bg-brand/40 group-hover:opacity-100">
+                    <InstagramIcon className="h-6 w-6 text-white" />
+                  </span>
+                </Link>
+              );
+            })}
           </div>
 
           <ButtonLink href={igUrl} variant="outline" size="md" className="mt-6 uppercase">

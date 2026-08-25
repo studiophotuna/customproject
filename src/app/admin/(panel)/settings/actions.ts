@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uploadMedia } from "@/lib/admin/media";
+import { runInstagramSync, readInstagramToken } from "@/lib/admin/instagram-sync";
 import type { Json } from "@/lib/database.types";
 
-export type ActionState = { ok?: boolean; error?: string } | null;
+export type ActionState = { ok?: boolean; error?: string; message?: string } | null;
 
 /**
  * Save a site_settings row. The stored JSON is built from the submitted fields,
@@ -132,4 +133,72 @@ export async function removeLogo(): Promise<void> {
   const supabase = await createClient();
   await supabase.from("site_settings").delete().eq("key", "logo");
   revalidatePath("/", "layout");
+}
+
+/**
+ * Save an Instagram token (if provided) and sync recent posts into the public
+ * feed. Runs as the current staff user (RLS-protected private_settings).
+ */
+export async function saveAndSyncInstagram(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const token = s(form.get("token"));
+  const userLabel = s(form.get("userLabel"));
+  const supabase = await createClient();
+  try {
+    const { count } = await runInstagramSync(supabase, {
+      token: token || undefined,
+      userLabel: userLabel || undefined,
+      refresh: true,
+    });
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Connected — synced ${count} post${count === 1 ? "" : "s"}.` };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+/** Re-fetch posts using the stored token. */
+export async function syncInstagramNow(): Promise<void> {
+  const supabase = await createClient();
+  try {
+    await runInstagramSync(supabase, { refresh: false });
+  } catch {
+    // surfaced on next page load via status; ignore here
+  }
+  revalidatePath("/", "layout");
+}
+
+/** Disconnect Instagram: clear the token and the cached feed. */
+export async function disconnectInstagram(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("private_settings").delete().eq("key", "instagram");
+  await supabase.from("site_settings").delete().eq("key", "instagram_feed");
+  revalidatePath("/", "layout");
+}
+
+/** Connection status for the admin UI. */
+export async function getInstagramStatus(): Promise<{
+  connected: boolean;
+  userLabel?: string;
+  lastSyncedAt?: string;
+  expiresAt?: string;
+  count: number;
+}> {
+  const supabase = await createClient();
+  const stored = await readInstagramToken(supabase);
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "instagram_feed")
+    .maybeSingle();
+  const items = (data?.value as { items?: unknown[] })?.items ?? [];
+  return {
+    connected: Boolean(stored.token),
+    userLabel: stored.userLabel,
+    lastSyncedAt: stored.lastSyncedAt,
+    expiresAt: stored.expiresAt,
+    count: items.length,
+  };
 }

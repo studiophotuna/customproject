@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
         hostname: supabaseHost,
         pathname: "/storage/v1/object/public/**",
       },
+      // Instagram media CDNs (feed images pulled via the Graph API).
+      { protocol: "https", hostname: "**.cdninstagram.com" },
+      { protocol: "https", hostname: "**.fbcdn.net" },
     ],
   },
 };

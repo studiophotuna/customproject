@@ -81,3 +81,10 @@ export type FooterColumn = { title: string; links: FooterLink[] };
 export type FooterSettings = { columns: FooterColumn[]; showNewsletter: boolean };
 
 export type SocialSettings = { instagram: string; facebook: string; tiktok: string };
+
+export type InstagramFeedItem = {
+  id: string;
+  mediaUrl: string;
+  permalink: string;
+  caption: string;
+};

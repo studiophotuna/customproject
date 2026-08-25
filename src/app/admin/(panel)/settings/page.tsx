@@ -3,6 +3,8 @@ import { SettingsForm } from "@/components/admin/SettingsForm";
 import { NavEditor } from "@/components/admin/NavEditor";
 import { FooterEditor } from "@/components/admin/FooterEditor";
 import { LogoUpload } from "@/components/admin/LogoUpload";
+import { InstagramConnect } from "@/components/admin/InstagramConnect";
+import { getInstagramStatus } from "./actions";
 import {
   getBrand,
   getContact,
@@ -30,6 +32,7 @@ export default async function SettingsPage() {
       getSocials(),
       getLogoUrl(),
     ]);
+  const igStatus = await getInstagramStatus();
 
   return (
     <>
@@ -47,6 +50,8 @@ export default async function SettingsPage() {
           initialColumns={footer.columns}
           initialNewsletter={footer.showNewsletter}
         />
+
+        <InstagramConnect status={igStatus} />
 
         <SettingsForm
           settingKey="socials"
