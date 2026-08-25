@@ -11,6 +11,9 @@ import type {
   ContactSettings,
   HeroSettings,
   DeliverySettings,
+  NavItem,
+  FooterSettings,
+  SocialSettings,
 } from "@/lib/types";
 import type { Tables } from "@/lib/database.types";
 
@@ -198,6 +201,59 @@ export async function getDelivery(): Promise<DeliverySettings> {
 export async function getTheme(): Promise<Theme> {
   const v = await getSetting<Partial<Theme>>("theme");
   return { ...defaultTheme, ...(v ?? {}) };
+}
+
+/** Primary navigation (admin-editable), falling back to the built-in menu. */
+export async function getNavigation(): Promise<NavItem[]> {
+  const v = await getSetting<{ items?: NavItem[] }>("navigation");
+  const items = v?.items;
+  return items && items.length > 0 ? items : siteConfig.nav;
+}
+
+const DEFAULT_FOOTER: FooterSettings = {
+  showNewsletter: true,
+  columns: [
+    {
+      title: "Shop",
+      links: [
+        { label: "All Cakes", href: "/shop" },
+        { label: "Birthday Cakes", href: "/shop/birthday-cakes" },
+        { label: "Custom Cakes", href: "/shop/custom-cakes" },
+        { label: "Cheesecakes", href: "/shop/cheesecakes" },
+        { label: "Desserts", href: "/shop/desserts" },
+      ],
+    },
+    {
+      title: "Information",
+      links: [
+        { label: "About Us", href: "/about" },
+        { label: "Custom Cakes", href: "/custom-cakes" },
+        { label: "Weddings & Events", href: "/weddings-events" },
+        { label: "Delivery & Pickup", href: "/delivery" },
+        { label: "Contact Us", href: "/contact" },
+        { label: "FAQ", href: "/faq" },
+      ],
+    },
+  ],
+};
+
+/** Footer columns + newsletter toggle (admin-editable). */
+export async function getFooter(): Promise<FooterSettings> {
+  const v = await getSetting<Partial<FooterSettings>>("footer");
+  return {
+    columns: v?.columns && v.columns.length > 0 ? v.columns : DEFAULT_FOOTER.columns,
+    showNewsletter: v?.showNewsletter ?? DEFAULT_FOOTER.showNewsletter,
+  };
+}
+
+/** Social links (admin-editable). Empty string hides that icon. */
+export async function getSocials(): Promise<SocialSettings> {
+  const v = await getSetting<Partial<SocialSettings>>("socials");
+  return {
+    instagram: v?.instagram ?? "",
+    facebook: v?.facebook ?? "",
+    tiktok: v?.tiktok ?? "",
+  };
 }
 
 // --- Static content (not yet in the DB) ---

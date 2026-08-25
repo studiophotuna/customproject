@@ -2,13 +2,21 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/config/site";
 
-/** Wordmark logo: uppercase serif name with a scripted accent word beneath. */
+/**
+ * Wordmark logo: uppercase serif name with a scripted accent word beneath.
+ * Name/accent default to the built-in config but can be overridden with the
+ * DB-driven brand values.
+ */
 export function Logo({
   className,
   onBrand = false,
+  name = siteConfig.name,
+  accent = siteConfig.nameAccent,
 }: {
   className?: string;
   onBrand?: boolean;
+  name?: string;
+  accent?: string;
 }) {
   return (
     <Link href="/" className={cn("inline-flex flex-col leading-none", className)}>
@@ -18,7 +26,7 @@ export function Logo({
           onBrand ? "text-on-brand" : "text-brand",
         )}
       >
-        {siteConfig.name}
+        {name}
       </span>
       <span
         className={cn(
@@ -27,7 +35,7 @@ export function Logo({
         )}
         style={{ fontFamily: "var(--font-script), cursive" }}
       >
-        {siteConfig.nameAccent}
+        {accent}
       </span>
     </Link>
   );

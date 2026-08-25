@@ -70,3 +70,14 @@ export type DeliverySettings = {
   points: string[];
   location: string;
 };
+
+// --- Navigation & footer (editable from the admin) ---
+
+export type NavChild = { label: string; href: string };
+export type NavItem = { label: string; href: string; children?: NavChild[] };
+
+export type FooterLink = { label: string; href: string };
+export type FooterColumn = { title: string; links: FooterLink[] };
+export type FooterSettings = { columns: FooterColumn[]; showNewsletter: boolean };
+
+export type SocialSettings = { instagram: string; facebook: string; tiktok: string };

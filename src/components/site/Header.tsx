@@ -7,29 +7,37 @@ import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
 import { Logo } from "@/components/site/Logo";
 import { useCart } from "@/components/cart/CartProvider";
-import { siteConfig } from "@/config/site";
+import type { NavItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
  * Sticky storefront header: wordmark, primary nav (with a Shop dropdown),
  * utility icons (search / account / cart), an Order Now CTA, and a mobile menu.
- * Cart count is a placeholder until the cart is wired up in Phase 5.
+ * Navigation and brand are passed in from the layout (DB-driven, admin-editable).
  */
-export function Header() {
+export function Header({
+  nav,
+  brandName,
+  brandAccent,
+}: {
+  nav: NavItem[];
+  brandName: string;
+  brandAccent: string;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
   const { count } = useCart();
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-background/95 backdrop-blur">
       <Container className="flex h-16 items-center justify-between gap-4">
-        <Logo />
+        <Logo name={brandName} accent={brandAccent} />
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 lg:flex">
-          {siteConfig.nav.map((item) =>
-            item.children ? (
-              <div key={item.href} className="group relative">
+          {nav.map((item, i) =>
+            item.children && item.children.length > 0 ? (
+              <div key={`${item.href}-${i}`} className="group relative">
                 <Link
                   href={item.href}
                   className="inline-flex items-center gap-1 text-sm text-foreground hover:text-brand"
@@ -54,7 +62,7 @@ export function Header() {
               </div>
             ) : (
               <Link
-                key={item.href}
+                key={`${item.href}-${i}`}
                 href={item.href}
                 className="text-sm text-foreground hover:text-brand"
               >
@@ -102,18 +110,18 @@ export function Header() {
         <div className="border-t border-line bg-background lg:hidden">
           <Container className="py-3">
             <ul className="flex flex-col">
-              {siteConfig.nav.map((item) => (
-                <li key={item.href} className="border-b border-line/60 last:border-0">
-                  {item.children ? (
+              {nav.map((item, i) => (
+                <li key={`${item.href}-${i}`} className="border-b border-line/60 last:border-0">
+                  {item.children && item.children.length > 0 ? (
                     <>
                       <button
                         className="flex w-full items-center justify-between py-3 text-sm"
-                        onClick={() => setShopOpen((o) => !o)}
+                        onClick={() => setOpenIndex((cur) => (cur === i ? null : i))}
                       >
                         {item.label}
-                        <ChevronDown className={cn("h-4 w-4 transition", shopOpen && "rotate-180")} />
+                        <ChevronDown className={cn("h-4 w-4 transition", openIndex === i && "rotate-180")} />
                       </button>
-                      {shopOpen && (
+                      {openIndex === i && (
                         <ul className="pb-2 pl-4">
                           {item.children.map((child) => (
                             <li key={child.href}>

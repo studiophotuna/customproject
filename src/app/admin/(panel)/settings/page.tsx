@@ -1,16 +1,30 @@
 import { AdminHeader } from "@/components/admin/ui";
 import { SettingsForm } from "@/components/admin/SettingsForm";
-import { getBrand, getContact, getHero, getDelivery, getTheme } from "@/lib/data";
+import { NavEditor } from "@/components/admin/NavEditor";
+import { FooterEditor } from "@/components/admin/FooterEditor";
+import {
+  getBrand,
+  getContact,
+  getHero,
+  getDelivery,
+  getTheme,
+  getNavigation,
+  getFooter,
+  getSocials,
+} from "@/lib/data";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [brand, contact, hero, delivery, theme] = await Promise.all([
+  const [brand, contact, hero, delivery, theme, nav, footer, socials] = await Promise.all([
     getBrand(),
     getContact(),
     getHero(),
     getDelivery(),
     getTheme(),
+    getNavigation(),
+    getFooter(),
+    getSocials(),
   ]);
 
   return (
@@ -21,6 +35,24 @@ export default async function SettingsPage() {
       />
 
       <div className="grid gap-6">
+        <NavEditor initial={nav} />
+
+        <FooterEditor
+          initialColumns={footer.columns}
+          initialNewsletter={footer.showNewsletter}
+        />
+
+        <SettingsForm
+          settingKey="socials"
+          title="Social Links"
+          description="Full URLs to your profiles. Leave blank to hide an icon."
+          fields={[
+            { name: "instagram", label: "Instagram URL", value: socials.instagram, placeholder: "https://instagram.com/…" },
+            { name: "facebook", label: "Facebook URL", value: socials.facebook, placeholder: "https://facebook.com/…" },
+            { name: "tiktok", label: "TikTok URL", value: socials.tiktok, placeholder: "https://tiktok.com/@…" },
+          ]}
+        />
+
         <SettingsForm
           settingKey="brand"
           title="Brand"

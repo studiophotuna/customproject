@@ -4,83 +4,88 @@ import { Container } from "@/components/ui/Container";
 import { FacebookIcon, InstagramIcon, TikTokIcon } from "@/components/ui/SocialIcons";
 import { NewsletterForm } from "@/components/site/forms/NewsletterForm";
 import { Logo } from "@/components/site/Logo";
-import { siteConfig } from "@/config/site";
+import { getBrand, getContact, getFooter, getSocials } from "@/lib/data";
+import type { FooterColumn } from "@/lib/types";
 
-const shopLinks = [
-  { label: "All Cakes", href: "/shop" },
-  { label: "Birthday Cakes", href: "/shop/birthday-cakes" },
-  { label: "Custom Cakes", href: "/shop/custom-cakes" },
-  { label: "Cheesecakes", href: "/shop/cheesecakes" },
-  { label: "Desserts", href: "/shop/desserts" },
-];
+export async function Footer() {
+  const [brand, contact, footer, socials] = await Promise.all([
+    getBrand(),
+    getContact(),
+    getFooter(),
+    getSocials(),
+  ]);
 
-const infoLinks = [
-  { label: "About Us", href: "/about" },
-  { label: "Custom Cakes", href: "/custom-cakes" },
-  { label: "Weddings & Events", href: "/weddings-events" },
-  { label: "Delivery & Pickup", href: "/delivery" },
-  { label: "Contact Us", href: "/contact" },
-  { label: "FAQ", href: "/faq" },
-];
+  const socialLinks = [
+    { href: socials.instagram, label: "Instagram", Icon: InstagramIcon },
+    { href: socials.facebook, label: "Facebook", Icon: FacebookIcon },
+    { href: socials.tiktok, label: "TikTok", Icon: TikTokIcon },
+  ].filter((s) => s.href);
 
-export function Footer() {
   return (
     <footer className="mt-auto bg-surface">
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-1">
-          <Logo />
-          <p className="mt-4 max-w-xs text-sm text-muted">{siteConfig.tagline}</p>
-          <div className="mt-4 flex gap-3">
-            <Link href="#" aria-label="Instagram" className="text-foreground hover:text-brand">
-              <InstagramIcon className="h-5 w-5" />
-            </Link>
-            <Link href="#" aria-label="Facebook" className="text-foreground hover:text-brand">
-              <FacebookIcon className="h-5 w-5" />
-            </Link>
-            <Link href="#" aria-label="TikTok" className="text-foreground hover:text-brand">
-              <TikTokIcon className="h-5 w-5" />
-            </Link>
-          </div>
+          <Logo name={brand.name} accent={brand.nameAccent} />
+          <p className="mt-4 max-w-xs text-sm text-muted">{brand.tagline}</p>
+          {socialLinks.length > 0 && (
+            <div className="mt-4 flex gap-3">
+              {socialLinks.map(({ href, label, Icon }) => (
+                <Link
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:text-brand"
+                >
+                  <Icon className="h-5 w-5" />
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        <FooterCol title="Shop" links={shopLinks} />
-        <FooterCol title="Information" links={infoLinks} />
+        {footer.columns.map((col) => (
+          <FooterCol key={col.title} column={col} />
+        ))}
 
         <div>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide">Contact</h3>
           <ul className="space-y-2 text-sm text-muted">
             <li className="flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0 text-brand" />
-              {siteConfig.contact.address}
+              {contact.address}
             </li>
             <li className="flex items-center gap-2">
               <Phone className="h-4 w-4 shrink-0 text-brand" />
-              {siteConfig.contact.phone}
+              {contact.phone}
             </li>
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 shrink-0 text-brand" />
-              {siteConfig.contact.email}
+              {contact.email}
             </li>
             <li className="flex items-center gap-2">
               <Clock className="h-4 w-4 shrink-0 text-brand" />
-              {siteConfig.contact.hours}
+              {contact.hours}
             </li>
           </ul>
         </div>
 
-        <div className="sm:col-span-2 lg:col-span-1">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide">Newsletter</h3>
-          <p className="mb-3 text-sm text-muted">
-            Be the first to know about new flavors, offers and more!
-          </p>
-          <NewsletterForm />
-        </div>
+        {footer.showNewsletter && (
+          <div className="sm:col-span-2 lg:col-span-1">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide">Newsletter</h3>
+            <p className="mb-3 text-sm text-muted">
+              Be the first to know about new flavors, offers and more!
+            </p>
+            <NewsletterForm />
+          </div>
+        )}
       </Container>
 
       <div className="border-t border-line">
         <Container className="py-4">
           <p className="text-center text-xs text-muted">
-            © {new Date().getFullYear()} {siteConfig.name} {siteConfig.nameAccent}. All Rights Reserved.
+            © {new Date().getFullYear()} {brand.name} {brand.nameAccent}. All Rights Reserved.
           </p>
         </Container>
       </div>
@@ -88,19 +93,13 @@ export function Footer() {
   );
 }
 
-function FooterCol({
-  title,
-  links,
-}: {
-  title: string;
-  links: { label: string; href: string }[];
-}) {
+function FooterCol({ column }: { column: FooterColumn }) {
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide">{title}</h3>
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide">{column.title}</h3>
       <ul className="space-y-2 text-sm">
-        {links.map((l) => (
-          <li key={l.href}>
+        {column.links.map((l, i) => (
+          <li key={`${l.href}-${i}`}>
             <Link href={l.href} className="text-muted hover:text-brand">
               {l.label}
             </Link>
