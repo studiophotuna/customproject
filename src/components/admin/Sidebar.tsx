@@ -95,6 +95,18 @@ export function Sidebar({
 
         <div className="border-t border-line p-3">
           <Link
+            href="/admin/account"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "mb-1 block rounded-md px-3 py-2 text-sm",
+              isActive("/admin/account")
+                ? "bg-brand text-on-brand"
+                : "text-foreground hover:bg-surface",
+            )}
+          >
+            My Account
+          </Link>
+          <Link
             href="/"
             className="mb-1 block rounded-md px-3 py-2 text-sm text-muted hover:bg-surface"
           >
