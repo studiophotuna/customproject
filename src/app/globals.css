@@ -45,6 +45,16 @@
   --font-script: var(--font-script);
 }
 
+/* Scale the whole UI up a touch — all rem-based sizing/spacing grows with it. */
+html {
+  font-size: 17.5px;
+}
+@media (min-width: 1024px) {
+  html {
+    font-size: 18px;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

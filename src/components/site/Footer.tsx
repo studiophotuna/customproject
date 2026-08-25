@@ -4,15 +4,16 @@ import { Container } from "@/components/ui/Container";
 import { FacebookIcon, InstagramIcon, TikTokIcon } from "@/components/ui/SocialIcons";
 import { NewsletterForm } from "@/components/site/forms/NewsletterForm";
 import { Logo } from "@/components/site/Logo";
-import { getBrand, getContact, getFooter, getSocials } from "@/lib/data";
+import { getBrand, getContact, getFooter, getLogoUrl, getSocials } from "@/lib/data";
 import type { FooterColumn } from "@/lib/types";
 
 export async function Footer() {
-  const [brand, contact, footer, socials] = await Promise.all([
+  const [brand, contact, footer, socials, logoUrl] = await Promise.all([
     getBrand(),
     getContact(),
     getFooter(),
     getSocials(),
+    getLogoUrl(),
   ]);
 
   const socialLinks = [
@@ -25,7 +26,7 @@ export async function Footer() {
     <footer className="mt-auto bg-surface">
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-1">
-          <Logo name={brand.name} accent={brand.nameAccent} />
+          <Logo name={brand.name} accent={brand.nameAccent} logoUrl={logoUrl} />
           <p className="mt-4 max-w-xs text-sm text-muted">{brand.tagline}</p>
           {socialLinks.length > 0 && (
             <div className="mt-4 flex gap-3">

@@ -164,6 +164,12 @@ export async function getBrand(): Promise<BrandSettings> {
   };
 }
 
+/** Uploaded logo image URL, or "" to use the text wordmark. */
+export async function getLogoUrl(): Promise<string> {
+  const v = await getSetting<{ url?: string }>("logo");
+  return v?.url ?? "";
+}
+
 export async function getContact(): Promise<ContactSettings> {
   const v = await getSetting<Partial<ContactSettings>>("contact");
   return {

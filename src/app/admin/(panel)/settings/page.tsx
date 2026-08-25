@@ -2,6 +2,7 @@ import { AdminHeader } from "@/components/admin/ui";
 import { SettingsForm } from "@/components/admin/SettingsForm";
 import { NavEditor } from "@/components/admin/NavEditor";
 import { FooterEditor } from "@/components/admin/FooterEditor";
+import { LogoUpload } from "@/components/admin/LogoUpload";
 import {
   getBrand,
   getContact,
@@ -11,21 +12,24 @@ import {
   getNavigation,
   getFooter,
   getSocials,
+  getLogoUrl,
 } from "@/lib/data";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [brand, contact, hero, delivery, theme, nav, footer, socials] = await Promise.all([
-    getBrand(),
-    getContact(),
-    getHero(),
-    getDelivery(),
-    getTheme(),
-    getNavigation(),
-    getFooter(),
-    getSocials(),
-  ]);
+  const [brand, contact, hero, delivery, theme, nav, footer, socials, logoUrl] =
+    await Promise.all([
+      getBrand(),
+      getContact(),
+      getHero(),
+      getDelivery(),
+      getTheme(),
+      getNavigation(),
+      getFooter(),
+      getSocials(),
+      getLogoUrl(),
+    ]);
 
   return (
     <>
@@ -35,6 +39,8 @@ export default async function SettingsPage() {
       />
 
       <div className="grid gap-6">
+        <LogoUpload current={logoUrl} />
+
         <NavEditor initial={nav} />
 
         <FooterEditor

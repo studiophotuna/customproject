@@ -1,6 +1,6 @@
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/site/SectionHeading";
-import { ProductCard } from "@/components/site/ProductCard";
+import { ProductCarousel } from "@/components/site/ProductCarousel";
 import { getFeaturedProducts } from "@/lib/data";
 
 export async function FeaturedProducts() {
@@ -12,10 +12,8 @@ export async function FeaturedProducts() {
           title="Our Favorites"
           subtitle="Discover the cakes our customers love."
         />
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+        <div className="mt-10">
+          <ProductCarousel products={products} />
         </div>
       </Container>
     </section>

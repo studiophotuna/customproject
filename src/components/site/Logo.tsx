@@ -1,23 +1,41 @@
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/config/site";
 
 /**
- * Wordmark logo: uppercase serif name with a scripted accent word beneath.
- * Name/accent default to the built-in config but can be overridden with the
- * DB-driven brand values.
+ * Brand logo. If a logo image has been uploaded (logoUrl), it renders that;
+ * otherwise it falls back to the wordmark (uppercase serif name + scripted
+ * accent). Name/accent default to the built-in config.
  */
 export function Logo({
   className,
   onBrand = false,
   name = siteConfig.name,
   accent = siteConfig.nameAccent,
+  logoUrl = "",
 }: {
   className?: string;
   onBrand?: boolean;
   name?: string;
   accent?: string;
+  logoUrl?: string;
 }) {
+  if (logoUrl) {
+    return (
+      <Link href="/" className={cn("inline-flex items-center", className)}>
+        <Image
+          src={logoUrl}
+          alt={`${name} ${accent}`}
+          width={220}
+          height={64}
+          priority
+          className="h-12 w-auto object-contain sm:h-14"
+        />
+      </Link>
+    );
+  }
+
   return (
     <Link href="/" className={cn("inline-flex flex-col leading-none", className)}>
       <span

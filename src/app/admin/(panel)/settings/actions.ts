@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { uploadMedia } from "@/lib/admin/media";
 import type { Json } from "@/lib/database.types";
 
 export type ActionState = { ok?: boolean; error?: string } | null;
@@ -107,4 +108,28 @@ export async function saveFooter(_prev: ActionState, form: FormData): Promise<Ac
     .filter((c) => c.title);
 
   return upsert("footer", { columns, showNewsletter: form.get("showNewsletter") === "on" });
+}
+
+/** Upload a logo image and store its URL (setting key `logo`). */
+export async function saveLogo(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const file = form.get("logo") as File | null;
+  if (!file || file.size === 0) return { error: "Please choose an image to upload." };
+
+  const supabase = await createClient();
+  let url: string | null;
+  try {
+    url = await uploadMedia(supabase, file, "brand");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  if (!url) return { error: "Upload failed. Please try again." };
+
+  return upsert("logo", { url });
+}
+
+/** Remove the uploaded logo (reverts to the text wordmark). */
+export async function removeLogo(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("site_settings").delete().eq("key", "logo");
+  revalidatePath("/", "layout");
 }

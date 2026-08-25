@@ -19,10 +19,12 @@ export function Header({
   nav,
   brandName,
   brandAccent,
+  logoUrl,
 }: {
   nav: NavItem[];
   brandName: string;
   brandAccent: string;
+  logoUrl: string;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -30,8 +32,8 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-background/95 backdrop-blur">
-      <Container className="flex h-16 items-center justify-between gap-4">
-        <Logo name={brandName} accent={brandAccent} />
+      <Container className="flex h-20 items-center justify-between gap-4">
+        <Logo name={brandName} accent={brandAccent} logoUrl={logoUrl} />
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 lg:flex">
