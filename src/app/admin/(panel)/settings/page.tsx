@@ -7,7 +7,7 @@ import { InstagramConnect } from "@/components/admin/InstagramConnect";
 import { InstagramModeToggle } from "@/components/admin/InstagramModeToggle";
 import { ManualInstagramGallery } from "@/components/admin/ManualInstagramGallery";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
-import { getInstagramMode, getInstagramManualItems } from "@/lib/data";
+import { getInstagramMode, getInstagramManualItems, getInstagramSection } from "@/lib/data";
 import { getInstagramStatus } from "./actions";
 import {
   getBrand,
@@ -36,10 +36,11 @@ export default async function SettingsPage() {
       getSocials(),
       getLogoUrl(),
     ]);
-  const [igStatus, igMode, igManual] = await Promise.all([
+  const [igStatus, igMode, igManual, igSection] = await Promise.all([
     getInstagramStatus(),
     getInstagramMode(),
     getInstagramManualItems(),
+    getInstagramSection(),
   ]);
 
   return (
@@ -57,6 +58,17 @@ export default async function SettingsPage() {
         <FooterEditor
           initialColumns={footer.columns}
           initialNewsletter={footer.showNewsletter}
+        />
+
+        <SettingsForm
+          settingKey="instagram_section"
+          title="Instagram Section Text"
+          description="The heading, handle and subtitle above the feed. The last word of the heading is styled in script."
+          fields={[
+            { name: "title", label: "Heading", value: igSection.title },
+            { name: "handle", label: "Handle", value: igSection.handle, placeholder: "@yourbakery (blank = use your Instagram link)" },
+            { name: "subtitle", label: "Subtitle", value: igSection.subtitle, type: "textarea" },
+          ]}
         />
 
         <div className="rounded-card border border-line bg-background p-5">

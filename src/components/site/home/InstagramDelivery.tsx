@@ -4,7 +4,13 @@ import { Bike, CheckCircle2, MapPin } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
-import { getBrand, getDelivery, getInstagramFeed, getSocials } from "@/lib/data";
+import {
+  getBrand,
+  getDelivery,
+  getInstagramFeed,
+  getInstagramSection,
+  getSocials,
+} from "@/lib/data";
 
 /** Derive a display handle from an Instagram URL, else a sensible fallback. */
 function handleFromUrl(url: string, brandName: string): string {
@@ -14,18 +20,25 @@ function handleFromUrl(url: string, brandName: string): string {
 }
 
 export async function InstagramDelivery() {
-  const [delivery, socials, brand, feed] = await Promise.all([
+  const [delivery, socials, brand, feed, section] = await Promise.all([
     getDelivery(),
     getSocials(),
     getBrand(),
     getInstagramFeed(),
+    getInstagramSection(),
   ]);
 
   const igUrl = socials.instagram || "#";
+  // Editable handle wins; otherwise derive from the Instagram link.
+  const handle = section.handle || handleFromUrl(socials.instagram, `${brand.name}${brand.nameAccent}`);
   // Use real posts when the feed has been synced; otherwise show placeholders.
   const tiles = feed.length > 0 ? feed.slice(0, 8) : null;
-  const handle = handleFromUrl(socials.instagram, `${brand.name}${brand.nameAccent}`);
   const city = (delivery.location || brand.location).split(",")[0].trim();
+
+  // Render the heading with its last word in the script accent for style.
+  const titleWords = section.title.trim().split(/\s+/);
+  const titleLast = titleWords.length > 1 ? titleWords.pop() : "";
+  const titleHead = titleWords.join(" ");
 
   return (
     <section className="py-20">
@@ -36,18 +49,25 @@ export async function InstagramDelivery() {
             Instagram
           </p>
           <h2 className="section-title mt-2 text-3xl text-foreground">
-            Follow the{" "}
-            <span style={{ fontFamily: "var(--font-script), cursive" }} className="text-brand">
-              Sweetness
-            </span>
+            {titleHead}
+            {titleLast && (
+              <>
+                {" "}
+                <span style={{ fontFamily: "var(--font-script), cursive" }} className="text-brand">
+                  {titleLast}
+                </span>
+              </>
+            )}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link href={igUrl} className="text-sm font-medium text-brand hover:underline">
-              {handle}
-            </Link>
-            <span className="text-sm text-muted">
-              See our latest cakes, desserts and celebrations.
-            </span>
+            {handle && (
+              <Link href={igUrl} className="text-sm font-medium text-brand hover:underline">
+                {handle}
+              </Link>
+            )}
+            {section.subtitle && (
+              <span className="text-sm text-muted">{section.subtitle}</span>
+            )}
           </div>
 
           <div className="mt-6 grid grid-cols-4 gap-3">

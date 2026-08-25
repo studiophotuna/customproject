@@ -263,6 +263,18 @@ export async function getSocials(): Promise<SocialSettings> {
   };
 }
 
+export type InstagramSection = { title: string; handle: string; subtitle: string };
+
+/** Editable heading/handle/subtitle for the "Follow the Sweetness" section. */
+export async function getInstagramSection(): Promise<InstagramSection> {
+  const v = await getSetting<Partial<InstagramSection>>("instagram_section");
+  return {
+    title: v?.title ?? "Follow the Sweetness",
+    handle: v?.handle ?? "",
+    subtitle: v?.subtitle ?? "See our latest cakes, desserts and celebrations.",
+  };
+}
+
 export type InstagramMode = "auto" | "manual";
 
 /** Whether the IG feed is auto-synced from the Graph API or manually curated. */
