@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { authMode, getIdentity, isOpenDemo } from "@/lib/auth";
+import { ConfigurationError } from "@/lib/auth/errors";
+import { SetupNotice } from "@/components/SetupNotice";
 import { hasAtLeast, type Role } from "@/lib/domain/constants";
 import { SideNav } from "@/components/SideNav";
 
@@ -25,6 +27,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: "Management",
     items: [
+      { href: "/admin/insights", label: "Insights", minimum: "MANAGER" },
       { href: "/allocation", label: "Allocation Monitor", minimum: "LEADER" },
       { href: "/sla", label: "SLA Rules", minimum: "LEADER" },
       { href: "/audit", label: "Audit Log", minimum: "LEADER" },
@@ -42,7 +45,16 @@ const NAV: { group: string; items: NavItem[] }[] = [
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const identity = await getIdentity();
+  let identity;
+  try {
+    identity = await getIdentity();
+  } catch (error) {
+    // A deployment missing its configuration should say so, not 500.
+    if (error instanceof ConfigurationError) {
+      return <SetupNotice detail={error.message} />;
+    }
+    throw error;
+  }
 
   // No identity: in the modes that have a picker, send them to it. Under
   // Windows/Entra auth an absent identity is a misconfiguration, not a prompt.

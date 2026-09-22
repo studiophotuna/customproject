@@ -39,6 +39,29 @@ export const OPEN_STATUSES: readonly TicketStatus[] = [
 /** Statuses the allocator may pick up. */
 export const PENDING_STATUSES: readonly TicketStatus[] = ["NEW"];
 
+/**
+ * Effort indicator on a ticket.
+ *
+ * Captured for reporting and internal productivity analysis. It MUST NOT reach
+ * the allocator: the queue is ordered by SLA due time with arrival breaking
+ * ties, and letting complexity influence that would let simple work overtake
+ * complex work of equal urgency. `check:core` asserts the engine's inputs carry
+ * no complexity field, so this cannot drift.
+ */
+export const COMPLEXITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export type Complexity = (typeof COMPLEXITIES)[number];
+
+/** Relative effort weights, for productivity reporting only — never allocation. */
+export const COMPLEXITY_WEIGHT: Record<Complexity, number> = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+};
+
+export function isComplexity(value: string): value is Complexity {
+  return (COMPLEXITIES as readonly string[]).includes(value);
+}
+
 export const TICKET_SOURCES = ["EMAIL", "MANUAL"] as const;
 export type TicketSource = (typeof TICKET_SOURCES)[number];
 

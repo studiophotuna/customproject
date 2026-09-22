@@ -81,7 +81,7 @@ function main(): void {
     insert(
       "Ticket",
       [
-        "id", "source", "externalRef", "subject", "body", "ticketType",
+        "id", "source", "externalRef", "subject", "body", "ticketType", "complexity",
         "receivedAt", "dueAt", "status", "currentAssigneeId", "onHoldSince",
         "holdAccumulatedMinutes", "holdReason", "resolvedAt", "closedAt", "updatedAt",
       ],

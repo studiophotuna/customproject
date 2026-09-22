@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { writeAudit } from "@/lib/db/audit";
 import {
+  type Complexity,
   OPEN_STATUSES,
   PENDING_STATUSES,
   type TicketSource,
@@ -16,6 +17,8 @@ import { dueAtFor } from "@/lib/sla";
 
 export interface CreateTicketInput {
   source: TicketSource;
+  /** Effort indicator. Reporting only — never reaches the allocator. */
+  complexity?: Complexity;
   subject: string;
   body?: string | null;
   ticketType: string;
@@ -74,6 +77,7 @@ export async function createTicket(input: CreateTicketInput) {
         subject,
         body: input.body?.trim() || null,
         ticketType: input.ticketType,
+        complexity: input.complexity ?? "MEDIUM",
         receivedAt: input.receivedAt,
         dueAt,
         status: "NEW",
@@ -103,6 +107,7 @@ const QUEUE_SELECT = {
   id: true,
   subject: true,
   ticketType: true,
+  complexity: true,
   source: true,
   status: true,
   receivedAt: true,

@@ -1,4 +1,6 @@
 import { authMode, getIdentity } from "@/lib/auth";
+import { ConfigurationError } from "@/lib/auth/errors";
+import { SetupNotice } from "@/components/SetupNotice";
 import { prisma } from "@/lib/db/prisma";
 import { chooseIdentity } from "@/app/signin/actions";
 import { Initials } from "@/components/ui";
@@ -14,13 +16,29 @@ const ROLE_BLURB: Record<string, string> = {
 };
 
 export default async function SignInPage() {
-  const mode = authMode();
+  let mode;
+  try {
+    mode = authMode();
+  } catch (error) {
+    if (error instanceof ConfigurationError) {
+      return <SetupNotice detail={error.message} />;
+    }
+    throw error;
+  }
 
   // Under Windows/Entra auth the identity arrives with the request; there is
   // nothing to choose.
   if (mode === "iis" || mode === "entra") redirect("/");
 
-  const existing = await getIdentity();
+  let existing;
+  try {
+    existing = await getIdentity();
+  } catch (error) {
+    if (error instanceof ConfigurationError) {
+      return <SetupNotice detail={error.message} />;
+    }
+    throw error;
+  }
   if (existing) redirect("/my-work");
 
   const agents = await prisma.agent.findMany({

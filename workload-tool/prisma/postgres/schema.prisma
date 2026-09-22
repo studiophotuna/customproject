@@ -110,6 +110,11 @@ model Ticket {
   subject               String       @db.VarChar(400)
   body                  String?      @db.Text
   ticketType            String       @db.VarChar(100) // snapshot; matches an SlaRule.ticketType
+  /// Effort indicator, for reporting and productivity analysis ONLY.
+  /// It is deliberately NOT an input to ordering or allocation: the queue is
+  /// priority-banded FIFO by SLA due time, and a complex ticket must not be
+  /// pushed behind a simple one. Nothing in src/lib/allocation/ reads this.
+  complexity            String       @default("MEDIUM") @db.VarChar(20) // LOW | MEDIUM | HIGH
   receivedAt            DateTime
   dueAt                 DateTime
   status                String       @db.VarChar(20) // NEW | ASSIGNED | IN_PROGRESS | ON_HOLD | RESOLVED | CLOSED

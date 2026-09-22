@@ -1,3 +1,4 @@
+import { ConfigurationError } from "@/lib/auth/errors";
 import type { IdentityProvider, RawPrincipal } from "@/lib/auth/types";
 
 // Dev mode. LOCAL ONLY — refuses to load when NODE_ENV is production.
@@ -24,8 +25,11 @@ export const devProvider: IdentityProvider = {
   mode: "dev",
   async resolve(headers) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "AUTH_MODE=dev is refused in a production build. Set AUTH_MODE=iis."
+      throw new ConfigurationError(
+        "AUTH_MODE is not set, so it defaulted to `dev`, which will not run in " +
+          "a production build. Set AUTH_MODE=iis for the on-prem deployment " +
+          "behind Windows auth, or AUTH_MODE=demo for a public demo with no " +
+          "authentication."
       );
     }
 

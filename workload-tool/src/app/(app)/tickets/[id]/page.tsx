@@ -35,6 +35,13 @@ export default async function TicketPage(props: {
               <div className="v">
                 <StatusBadge status={ticket.status} />
               </div>
+              <div className="k">Complexity</div>
+              <div className="v">
+                <span className="badge normal">{ticket.complexity}</span>
+                <span style={{ color: "var(--muted)", fontSize: 11, marginLeft: 8 }}>
+                  reporting only — not used for allocation
+                </span>
+              </div>
               <div className="k">Assignee</div>
               <div className="v">{ticket.currentAssignee?.displayName ?? "Unassigned"}</div>
               <div className="k">Received</div>

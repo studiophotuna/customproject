@@ -40,6 +40,7 @@ export interface SlaRuleRow {
 export interface TicketRow {
   id: string;
   source: string;
+  complexity: string;
   externalRef: string | null;
   subject: string;
   body: string | null;
@@ -250,9 +251,23 @@ export function buildSeedData(now: Date = new Date()): SeedData {
     const settled = spec.status === "RESOLVED" || spec.status === "CLOSED";
     const ticketId = randomUUID();
 
+    // Complexity is sample data for the reporting screens. It has no effect on
+    // ordering or allocation — that is asserted in check:core.
+    const complexity =
+      spec.type === "Change Request"
+        ? "HIGH"
+        : spec.type === "Incident - Critical"
+          ? "HIGH"
+          : spec.type === "General Enquiry"
+            ? "LOW"
+            : spec.minutesAgo % 3 === 0
+              ? "LOW"
+              : "MEDIUM";
+
     tickets.push({
       id: ticketId,
       source: "MANUAL",
+      complexity,
       externalRef: null,
       subject: spec.subject,
       body: `Seeded sample request: ${spec.subject}.`,

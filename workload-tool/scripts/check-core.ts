@@ -7,6 +7,8 @@
 // role mapping. Anything that needs SQL Server is out of scope here by design.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   ORDERING_STRATEGIES,
@@ -143,6 +145,35 @@ check("one pass levels load out instead of filling one agent to cap", () => {
 check("nothing is allocated when nobody is available", () => {
   const plan = allocate([ticket("t1", 0, 60)], [agent("off", { onShiftNow: false })]);
   assert.deepEqual(plan, []);
+});
+
+check("complexity never reaches the allocation engine", () => {
+  // The guarantee the brief asks for: however complex a ticket is, it cannot
+  // jump or lose its place. The engine's input type is the enforcement point —
+  // if someone adds complexity to QueueTicket, this fails.
+  const sample = ticket("t1", 0, 60);
+  assert.deepEqual(
+    Object.keys(sample).sort(),
+    ["dueAt", "id", "receivedAt"],
+    "QueueTicket must carry only id, receivedAt and dueAt"
+  );
+
+  // Strip comments first: the engine's own prose says it allocates "regardless
+  // of complexity", which is the property being asserted, not a violation.
+  const codeOnly = (file: string) =>
+    readFileSync(
+      join(import.meta.dirname, "..", "src", "lib", "allocation", file),
+      "utf8"
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+
+  for (const file of ["allocation-engine.ts", "run.ts"]) {
+    assert.ok(
+      !/complexity/i.test(codeOnly(file)),
+      `${file} must not read complexity in code`
+    );
+  }
 });
 
 console.log("\nSLA clock");

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "AUTH_MODE": "demo",
+    "ALLOCATION_ORDERING": "priorityBandedFifo",
+    "ALLOCATION_POLICY": "leastLoaded",
+    "MAIL_ADAPTER": "stub",
+    "BUSINESS_DAY_START": "09:00",
+    "BUSINESS_DAY_END": "17:00",
+    "BUSINESS_DAYS": "1,2,3,4,5"
+  },
+  "build": {
+    "env": {
+      "AUTH_MODE": "demo"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 
+import { ConfigurationError } from "@/lib/auth/errors";
 import { prisma } from "@/lib/db/prisma";
 import { hasAtLeast, type Role } from "@/lib/domain/constants";
 import { roleFromAgent, roleFromGroups } from "@/lib/auth/roles";
@@ -26,7 +27,7 @@ export type AuthMode = "iis" | "entra" | "dev" | "demo";
 export function authMode(): AuthMode {
   const mode = (process.env.AUTH_MODE ?? "dev").toLowerCase();
   if (mode in PROVIDERS) return mode as AuthMode;
-  throw new Error(
+  throw new ConfigurationError(
     `Unknown AUTH_MODE "${mode}". Expected one of: iis, entra, dev, demo.`
   );
 }
