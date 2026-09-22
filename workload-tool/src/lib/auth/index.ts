@@ -1,5 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { ConfigurationError } from "@/lib/auth/errors";
 import { prisma } from "@/lib/db/prisma";
@@ -73,20 +74,34 @@ export class AuthorizationError extends Error {
   }
 }
 
-/** Throws unless the caller is authenticated and holds at least `minimum`. */
+/**
+ * The caller, guaranteed to hold at least `minimum`.
+ *
+ * Someone reaching a page their role does not cover is an ordinary outcome, not
+ * a fault, so it redirects to an explanatory page rather than throwing. Throwing
+ * would surface as "Something went wrong" — React scrubs error messages out of
+ * client error boundaries in production, so the real reason never reaches the
+ * screen.
+ *
+ * Server Actions are public POST endpoints, so this is still the authorization
+ * check for them; a redirect response is a refusal there too.
+ */
 export async function requireRole(minimum: Role): Promise<Identity> {
   const identity = await getIdentity();
+
   if (!identity) {
+    const mode = authMode();
+    if (mode === "demo" || mode === "dev") redirect("/signin");
     throw new AuthorizationError(
-      "Not authenticated. In dev mode set DEV_UPN; behind IIS, check that " +
-        "Anonymous Authentication is disabled and Windows Authentication is on."
+      "Not authenticated. Behind IIS, check that Anonymous Authentication is " +
+        "disabled and Windows Authentication is enabled on the site."
     );
   }
+
   if (!hasAtLeast(identity.role, minimum)) {
-    throw new AuthorizationError(
-      `Requires ${minimum} or higher; you are ${identity.role}.`
-    );
+    redirect(`/no-access?need=${encodeURIComponent(minimum)}`);
   }
+
   return identity;
 }
 
