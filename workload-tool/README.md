@@ -171,28 +171,58 @@ existing scheduler's tables in the same SQL Server instance — add a
 ### Running on Postgres / Supabase
 
 SQL Server on-prem is the production target. Postgres is supported as a **second
-target** for a hosted demo or staging environment — not as a replacement, and
-not as a fork.
+target** for a hosted demo — not a replacement, and not a fork.
 
 `prisma/schema.prisma` stays the single source of truth.
 `prisma/postgres/schema.prisma` is **generated** from it by
 `scripts/gen-postgres-schema.ts`, which changes only the connector-specific
-parts (`provider`, `directUrl`, and the four native-type mappings). Never edit
-the generated file: change the source and re-run `npm run pg:schema`.
+parts. Never edit the generated file: change the source and run
+`npm run pg:schema`.
+
+#### This database is shared
+
+The demo database is the same Supabase project that hosts an unrelated
+storefront. They coexist by owning different schemas:
+
+| Schema | Owner |
+| --- | --- |
+| `public` | the storefront (11 tables) — **not ours, never touched** |
+| `workload` | this app (8 tables + its own `_prisma_migrations`) |
+
+What makes that safe is `schemas = ["workload"]` in the generated datasource.
+Prisma neither reads nor migrates anything outside it, so the storefront's
+tables can never register as drift and can never be dropped by a migration.
+Every statement in `prisma/postgres/migrations/` is schema-qualified, so nothing
+depends on `search_path` either.
+
+> **There is deliberately no `pg:reset` script.** `prisma migrate reset` drops
+> and recreates schemas, and on a shared database that is not a risk worth
+> keeping one keystroke away. To rebuild the demo data, re-run the seed — it
+> only ever touches `workload`.
+
+#### Commands
 
 ```bash
-# set DATABASE_URL and DIRECT_URL to the Postgres connection strings first
+# set DATABASE_URL and DIRECT_URL first (see .env.example)
 npm run pg:generate    # regenerate the variant schema + Prisma Client
 npm run pg:deploy      # apply prisma/postgres/migrations
 SEED_ALLOW_NONLOCAL=1 npm run pg:seed
 ```
 
+If you cannot reach the database with Prisma (no password to hand), emit the
+seed as SQL instead and paste it into the Supabase SQL editor — same dataset,
+same module, so the two cannot diverge:
+
+```bash
+npx tsx scripts/seed-to-sql.ts > seed.sql
+```
+
 Both targets generate the Prisma Client to the same place, so **whichever you
 generated last is the active one**. Switch back with `npm run db:generate`.
 
-Four things to know before pointing this at Supabase:
+#### Four things to know
 
-1. **Use the session-mode connection (`:5432`), not the transaction-mode pooler
+1. **Use the session-mode connection (`:5432`), not the transaction pooler
    (`:6543`).** The four interactive transactions in `lifecycle.ts`, `run.ts`,
    `tickets.ts` and `leader/actions.ts` are what guarantee a ticket cannot move
    without its audit row committing alongside it. Interactive transactions do
@@ -203,17 +233,19 @@ Four things to know before pointing this at Supabase:
    before the `adUpn` lookup and the seed stores lowercase, so this holds — but
    any new code path that forgets will fail on Postgres while working on
    SQL Server.
-3. **Row Level Security is off on Prisma-created tables**, and Prisma connects
-   as a role that bypasses it. A Supabase database is internet-reachable, so a
-   leaked connection string is full read/write on internal work requests.
-   Add RLS policies or network restrictions before this holds anything real.
+3. **RLS is enabled with no policies on every `workload` table.** The schema is
+   not in PostgREST's exposed-schema list, so the anon key cannot reach it;
+   deny-by-default makes that explicit if anyone ever exposes the schema.
+   Prisma connects as the table owner and bypasses RLS, so the app is
+   unaffected — authorization stays in the application layer, exactly as it is
+   on-prem. **Do not add `workload` to the exposed schemas.**
 4. **It does not change authentication.** Supabase replaces the database only.
    Auth is still `iis` or `dev`, and dev mode refuses to start under
    `NODE_ENV=production` — so this alone does not make the app publicly
    viewable.
 
 This is a deliberate exception to the "no third-party data stores" constraint in
-the brief, for demo/staging use. Production stays on-prem SQL Server.
+the brief, for demo use. Production stays on-prem SQL Server.
 
 ### SLA clock
 
@@ -240,6 +272,7 @@ Going ON_HOLD stops the clock: the elapsed hold is added to
 | `npm run check:core` | engine / SLA / lifecycle / role checks, no database needed |
 | `npm run pg:schema` | regenerate the Postgres schema variant from the source schema |
 | `npm run pg:generate` / `pg:deploy` / `pg:seed` | the same flow against Postgres/Supabase |
+| `npm run pg:seed:sql` | emit the seed as SQL for a database Prisma cannot reach |
 | `npm run lint` | ESLint |
 
 ## Deviations from the supplied foundation

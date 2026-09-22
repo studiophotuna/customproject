@@ -1,8 +1,8 @@
 -- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
+CREATE SCHEMA IF NOT EXISTS "workload";
 
 -- CreateTable
-CREATE TABLE "Agent" (
+CREATE TABLE "workload"."Agent" (
     "id" UUID NOT NULL,
     "adUpn" VARCHAR(256) NOT NULL,
     "displayName" VARCHAR(200) NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE "Agent" (
 );
 
 -- CreateTable
-CREATE TABLE "Shift" (
+CREATE TABLE "workload"."Shift" (
     "id" UUID NOT NULL,
     "agentId" UUID NOT NULL,
     "startsAt" TIMESTAMP(3) NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE "Shift" (
 );
 
 -- CreateTable
-CREATE TABLE "SlaRule" (
+CREATE TABLE "workload"."SlaRule" (
     "id" UUID NOT NULL,
     "ticketType" VARCHAR(100) NOT NULL,
     "slaMinutes" INTEGER NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE "SlaRule" (
 );
 
 -- CreateTable
-CREATE TABLE "Ticket" (
+CREATE TABLE "workload"."Ticket" (
     "id" UUID NOT NULL,
     "source" VARCHAR(20) NOT NULL,
     "externalRef" VARCHAR(400),
@@ -59,7 +59,7 @@ CREATE TABLE "Ticket" (
 );
 
 -- CreateTable
-CREATE TABLE "Assignment" (
+CREATE TABLE "workload"."Assignment" (
     "id" UUID NOT NULL,
     "ticketId" UUID NOT NULL,
     "agentId" UUID NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE "Assignment" (
 );
 
 -- CreateTable
-CREATE TABLE "AuditLog" (
+CREATE TABLE "workload"."AuditLog" (
     "id" UUID NOT NULL,
     "ticketId" UUID,
     "actor" VARCHAR(256) NOT NULL,
@@ -83,7 +83,7 @@ CREATE TABLE "AuditLog" (
 );
 
 -- CreateTable
-CREATE TABLE "MailboxConfig" (
+CREATE TABLE "workload"."MailboxConfig" (
     "id" UUID NOT NULL,
     "address" VARCHAR(256) NOT NULL,
     "platform" VARCHAR(20) NOT NULL,
@@ -93,7 +93,7 @@ CREATE TABLE "MailboxConfig" (
 );
 
 -- CreateTable
-CREATE TABLE "IngestionRule" (
+CREATE TABLE "workload"."IngestionRule" (
     "id" UUID NOT NULL,
     "mailboxId" UUID NOT NULL,
     "matchKind" VARCHAR(20) NOT NULL,
@@ -105,50 +105,50 @@ CREATE TABLE "IngestionRule" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Agent_adUpn_key" ON "Agent"("adUpn");
+CREATE UNIQUE INDEX "Agent_adUpn_key" ON "workload"."Agent"("adUpn");
 
 -- CreateIndex
-CREATE INDEX "Shift_agentId_startsAt_endsAt_idx" ON "Shift"("agentId", "startsAt", "endsAt");
+CREATE INDEX "Shift_agentId_startsAt_endsAt_idx" ON "workload"."Shift"("agentId", "startsAt", "endsAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SlaRule_ticketType_key" ON "SlaRule"("ticketType");
+CREATE UNIQUE INDEX "SlaRule_ticketType_key" ON "workload"."SlaRule"("ticketType");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Ticket_externalRef_key" ON "Ticket"("externalRef");
+CREATE UNIQUE INDEX "Ticket_externalRef_key" ON "workload"."Ticket"("externalRef");
 
 -- CreateIndex
-CREATE INDEX "Ticket_status_dueAt_receivedAt_idx" ON "Ticket"("status", "dueAt", "receivedAt");
+CREATE INDEX "Ticket_status_dueAt_receivedAt_idx" ON "workload"."Ticket"("status", "dueAt", "receivedAt");
 
 -- CreateIndex
-CREATE INDEX "Assignment_ticketId_idx" ON "Assignment"("ticketId");
+CREATE INDEX "Assignment_ticketId_idx" ON "workload"."Assignment"("ticketId");
 
 -- CreateIndex
-CREATE INDEX "Assignment_agentId_unassignedAt_idx" ON "Assignment"("agentId", "unassignedAt");
+CREATE INDEX "Assignment_agentId_unassignedAt_idx" ON "workload"."Assignment"("agentId", "unassignedAt");
 
 -- CreateIndex
-CREATE INDEX "AuditLog_ticketId_at_idx" ON "AuditLog"("ticketId", "at");
+CREATE INDEX "AuditLog_ticketId_at_idx" ON "workload"."AuditLog"("ticketId", "at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "MailboxConfig_address_key" ON "MailboxConfig"("address");
+CREATE UNIQUE INDEX "MailboxConfig_address_key" ON "workload"."MailboxConfig"("address");
 
 -- CreateIndex
-CREATE INDEX "IngestionRule_mailboxId_ruleOrder_idx" ON "IngestionRule"("mailboxId", "ruleOrder");
+CREATE INDEX "IngestionRule_mailboxId_ruleOrder_idx" ON "workload"."IngestionRule"("mailboxId", "ruleOrder");
 
 -- AddForeignKey
-ALTER TABLE "Shift" ADD CONSTRAINT "Shift_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "workload"."Shift" ADD CONSTRAINT "Shift_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "workload"."Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_currentAssigneeId_fkey" FOREIGN KEY ("currentAssigneeId") REFERENCES "Agent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "workload"."Ticket" ADD CONSTRAINT "Ticket_currentAssigneeId_fkey" FOREIGN KEY ("currentAssigneeId") REFERENCES "workload"."Agent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "workload"."Assignment" ADD CONSTRAINT "Assignment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "workload"."Ticket"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "workload"."Assignment" ADD CONSTRAINT "Assignment_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "workload"."Agent"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "workload"."AuditLog" ADD CONSTRAINT "AuditLog_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "workload"."Ticket"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "IngestionRule" ADD CONSTRAINT "IngestionRule_mailboxId_fkey" FOREIGN KEY ("mailboxId") REFERENCES "MailboxConfig"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "workload"."IngestionRule" ADD CONSTRAINT "IngestionRule_mailboxId_fkey" FOREIGN KEY ("mailboxId") REFERENCES "workload"."MailboxConfig"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

@@ -6,6 +6,7 @@
 //
 // Differences from the source, and nothing else:
 //   * datasource provider sqlserver -> postgresql, plus directUrl
+//   * datasource scoped to the "workload" schema, and @@schema on each model
 //   * @db.UniqueIdentifier -> @db.Uuid
 //   * @db.NVarChar(Max)    -> @db.Text
 //   * @db.NVarChar(n)      -> @db.VarChar(n)
@@ -37,11 +38,16 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  // Migrations and introspection need a direct (session-mode) connection.
-  // On Supabase, DIRECT_URL is the :5432 connection string. Interactive
-  // transactions do not work through a transaction-mode pooler, and this app
-  // relies on them for ticket + audit atomicity — see the README.
+  // Migrations need a direct (session-mode) connection. On Supabase, DIRECT_URL
+  // is the :5432 connection string. Interactive transactions do not work
+  // through a transaction-mode pooler, and this app relies on them for
+  // ticket + audit atomicity — see the README.
   directUrl = env("DIRECT_URL")
+  // This app owns exactly one schema. Scoping it here is what makes it safe to
+  // share a database with an unrelated application: Prisma neither reads nor
+  // migrates anything outside "workload", so another app's tables can
+  // never register as drift and can never be dropped by a migration.
+  schemas   = ["workload"]
 }
 
 /// An FTE. Identity is the AD user; `role` and availability derive from AD group
@@ -58,6 +64,8 @@ model Agent {
   assignments    Assignment[]
   currentTickets Ticket[]     @relation("CurrentAssignee")
   createdAt      DateTime     @default(now())
+
+  @@schema("workload")
 }
 
 /// A scheduled shift window. This may instead be implemented as a VIEW onto the
@@ -72,6 +80,8 @@ model Shift {
   endsAt   DateTime
 
   @@index([agentId, startsAt, endsAt])
+
+  @@schema("workload")
 }
 
 /// SLA matrix: ticket type -> time budget. `businessHoursOnly` selects the clock
@@ -83,6 +93,8 @@ model SlaRule {
   slaMinutes        Int
   businessHoursOnly Boolean @default(true)
   active            Boolean @default(true)
+
+  @@schema("workload")
 }
 
 /// A unit of work. `receivedAt` starts the SLA clock; `dueAt` is computed at
@@ -113,6 +125,8 @@ model Ticket {
   updatedAt             DateTime     @updatedAt
 
   @@index([status, dueAt, receivedAt]) // supports the priority-banded FIFO queue read
+
+  @@schema("workload")
 }
 
 /// Assignment history — one row per time a ticket is given to an agent, so
@@ -133,6 +147,8 @@ model Assignment {
 
   @@index([ticketId])
   @@index([agentId, unassignedAt])
+
+  @@schema("workload")
 }
 
 /// Immutable audit trail: every ticket event with actor, timestamp, and an
@@ -149,6 +165,8 @@ model AuditLog {
   at          DateTime @default(now())
 
   @@index([ticketId, at])
+
+  @@schema("workload")
 }
 
 /// A watched shared mailbox. `platform` decides which adapter the worker uses.
@@ -158,6 +176,8 @@ model MailboxConfig {
   platform String          @db.VarChar(20) // EXCHANGE_ONPREM | M365_GRAPH | IMAP
   active   Boolean         @default(true)
   rules    IngestionRule[]
+
+  @@schema("workload")
 }
 
 /// Rules that map an inbound email to a ticket type (which in turn sets the SLA).
@@ -172,4 +192,6 @@ model IngestionRule {
   ruleOrder  Int           @default(100)
 
   @@index([mailboxId, ruleOrder])
+
+  @@schema("workload")
 }

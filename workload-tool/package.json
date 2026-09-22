@@ -19,7 +19,8 @@
     "pg:generate": "npm run pg:schema && prisma generate --schema prisma/postgres/schema.prisma",
     "pg:deploy": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
     "pg:migrate": "prisma migrate dev --schema prisma/postgres/schema.prisma",
-    "pg:seed": "tsx prisma/seed.ts"
+    "pg:seed": "tsx prisma/seed.ts",
+    "pg:seed:sql": "tsx scripts/seed-to-sql.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
