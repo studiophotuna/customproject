@@ -21,6 +21,18 @@ import { dueAtAfterHold } from "@/lib/sla";
 // uses (priority-banded FIFO by default), so both paths agree on what "next"
 // means — a member cannot cherry-pick, and the queue order is the SLA order.
 
+/**
+ * Interactive-transaction budget.
+ *
+ * Prisma's 5s default assumes a database next door. This app can run with the
+ * web tier and the database in different regions, where every round-trip costs
+ * hundreds of milliseconds, so a transaction of a dozen statements exceeds it
+ * and fails with P2028. The real fix is fewer statements inside the
+ * transaction - done below, reads now happen outside it - and this is the
+ * margin for the writes that remain.
+ */
+const TX = { timeout: 20_000, maxWait: 15_000 } as const;
+
 export class WorkError extends Error {
   constructor(message: string) {
     super(message);
@@ -128,8 +140,10 @@ async function openActivity(
  * The next ticket this agent should work, by the configured ordering.
  * Returns null when the queue is empty or the agent cannot take more work.
  */
+type Db = Prisma.TransactionClient | typeof prisma;
+
 async function nextTicketFor(
-  tx: Prisma.TransactionClient,
+  tx: Db,
   agentId: string,
   at: Date
 ): Promise<string | null> {
@@ -243,42 +257,69 @@ export interface StartResult {
 export async function startWork(agentId: string, actor: string): Promise<StartResult> {
   const at = new Date();
 
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: { id: true },
-    });
-    if (existing) throw new WorkError("You are already clocked in.");
+  // Reads first, outside any transaction: choosing the next ticket needs
+  // several queries and none of them need to be atomic. The write below
+  // re-checks the ticket it was handed, which is what actually prevents two
+  // people starting on the same one.
+  const existing = await prisma.workSession.findFirst({
+    where: { agentId, endedAt: null },
+    select: { id: true },
+  });
+  if (existing) throw new WorkError("You are already clocked in.");
 
+  const candidateId = await nextTicketFor(prisma, agentId, at);
+
+  return prisma.$transaction(async (tx) => {
     const session = await tx.workSession.create({
       data: { agentId, startedAt: at },
       select: { id: true },
     });
 
-    const ticketId = await nextTicketFor(tx, agentId, at);
-    if (ticketId) {
-      await beginTicket(tx, { ticketId, agentId, sessionId: session.id, actor, at });
-    } else {
-      await openActivity(tx, session.id, "IDLE", at);
+    const claimed = candidateId
+      ? await claimTicket(tx, candidateId)
+      : false;
+
+    if (claimed && candidateId) {
+      await beginTicket(tx, { ticketId: candidateId, agentId, sessionId: session.id, actor, at });
+      return { sessionId: session.id, ticketId: candidateId };
     }
 
-    return { sessionId: session.id, ticketId };
+    await openActivity(tx, session.id, "IDLE", at);
+    return { sessionId: session.id, ticketId: null };
+  }, TX);
+}
+
+/**
+ * Re-assert that a ticket picked outside the transaction is still free.
+ *
+ * Returns false when someone else took it in the meantime, which the caller
+ * treats as "nothing available" rather than an error - the member simply lands
+ * idle and can ask again.
+ */
+async function claimTicket(
+  tx: Prisma.TransactionClient,
+  ticketId: string
+): Promise<boolean> {
+  const current = await tx.ticket.findUnique({
+    where: { id: ticketId },
+    select: { status: true, currentAssigneeId: true },
   });
+  return current?.status === "NEW" && current.currentAssigneeId === null;
 }
 
 /** Clock out. Closes the open activity and the session. */
 export async function stopWork(agentId: string): Promise<void> {
   const at = new Date();
-  await prisma.$transaction(async (tx) => {
-    const session = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: { id: true },
-    });
-    if (!session) throw new WorkError("You are not clocked in.");
+  const session = await prisma.workSession.findFirst({
+    where: { agentId, endedAt: null },
+    select: { id: true },
+  });
+  if (!session) throw new WorkError("You are not clocked in.");
 
+  await prisma.$transaction(async (tx) => {
     await closeOpenActivity(tx, session.id, at);
     await tx.workSession.update({ where: { id: session.id }, data: { endedAt: at } });
-  });
+  }, TX);
 }
 
 /** Pull the next ticket on demand (after a resolve, or out of IDLE). */
@@ -287,28 +328,30 @@ export async function getNextTicket(
   actor: string
 ): Promise<string | null> {
   const at = new Date();
-  return prisma.$transaction(async (tx) => {
-    const session = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: { id: true },
-    });
-    if (!session) throw new WorkError("Start working before requesting a ticket.");
 
-    const open = await tx.activityLog.findFirst({
-      where: { sessionId: session.id, endedAt: null },
-      select: { kind: true },
-    });
-    if (open?.kind === "TICKET") {
-      throw new WorkError("Finish or pause the current ticket first.");
-    }
-
-    const ticketId = await nextTicketFor(tx, agentId, at);
-    if (!ticketId) return null;
-
-    await closeOpenActivity(tx, session.id, at);
-    await beginTicket(tx, { ticketId, agentId, sessionId: session.id, actor, at });
-    return ticketId;
+  const session = await prisma.workSession.findFirst({
+    where: { agentId, endedAt: null },
+    select: { id: true },
   });
+  if (!session) throw new WorkError("Start working before requesting a ticket.");
+
+  const open = await prisma.activityLog.findFirst({
+    where: { sessionId: session.id, endedAt: null },
+    select: { kind: true },
+  });
+  if (open?.kind === "TICKET") {
+    throw new WorkError("Finish or pause the current ticket first.");
+  }
+
+  const candidateId = await nextTicketFor(prisma, agentId, at);
+  if (!candidateId) return null;
+
+  return prisma.$transaction(async (tx) => {
+    if (!(await claimTicket(tx, candidateId))) return null;
+    await closeOpenActivity(tx, session.id, at);
+    await beginTicket(tx, { ticketId: candidateId, agentId, sessionId: session.id, actor, at });
+    return candidateId;
+  }, TX);
 }
 
 /** Resolve the ticket in hand, stop its clock, and pull the next one. */
@@ -317,34 +360,23 @@ export async function resolveCurrentTicket(
   actor: string
 ): Promise<{ resolvedId: string; nextId: string | null }> {
   const at = new Date();
-  return prisma.$transaction(async (tx) => {
-    const session = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: {
-        id: true,
-        activities: {
-          where: { endedAt: null, kind: "TICKET" },
-          select: { id: true, ticketId: true },
-          take: 1,
-        },
-      },
-    });
-    const activity = session?.activities[0];
-    if (!session || !activity?.ticketId) {
-      throw new WorkError("You are not working a ticket.");
-    }
+  const { sessionId, ticketId } = await requireTicketInHand(agentId);
 
-    await closeOpenActivity(tx, session.id, at);
+  // Finishing the ticket and picking the next one are two separate concerns, so
+  // they are two short transactions rather than one long one. If the process
+  // dies between them the ticket is still resolved and the member simply lands
+  // with nothing running, which "Get next ticket" recovers.
+  await prisma.$transaction(async (tx) => {
+    await closeOpenActivity(tx, sessionId, at);
     await tx.assignment.updateMany({
-      where: { ticketId: activity.ticketId, unassignedAt: null },
+      where: { ticketId, unassignedAt: null },
       data: { unassignedAt: at },
     });
     const ticket = await tx.ticket.update({
-      where: { id: activity.ticketId },
+      where: { id: ticketId },
       data: { status: "RESOLVED", resolvedAt: at, onHoldSince: null },
       select: { id: true, dueAt: true },
     });
-
     await writeAudit(tx, {
       ticketId: ticket.id,
       actor,
@@ -355,16 +387,54 @@ export async function resolveCurrentTicket(
         onTime: at.getTime() <= ticket.dueAt.getTime(),
       },
     });
+  }, TX);
 
-    const nextId = await nextTicketFor(tx, agentId, at);
-    if (nextId) {
-      await beginTicket(tx, { ticketId: nextId, agentId, sessionId: session.id, actor, at });
-    } else {
-      await openActivity(tx, session.id, "IDLE", at);
-    }
+  const nextId = await pullNextInto(sessionId, agentId, actor);
+  return { resolvedId: ticketId, nextId };
+}
 
-    return { resolvedId: ticket.id, nextId };
+/** The open session and the ticket currently running in it, or an error. */
+async function requireTicketInHand(
+  agentId: string
+): Promise<{ sessionId: string; ticketId: string }> {
+  const session = await prisma.workSession.findFirst({
+    where: { agentId, endedAt: null },
+    select: {
+      id: true,
+      activities: {
+        where: { endedAt: null, kind: "TICKET" },
+        select: { ticketId: true },
+        take: 1,
+      },
+    },
   });
+  const ticketId = session?.activities[0]?.ticketId;
+  if (!session || !ticketId) throw new WorkError("You are not working a ticket.");
+  return { sessionId: session.id, ticketId };
+}
+
+/**
+ * Hand the member their next ticket, or leave them idle.
+ *
+ * The pick is a read and happens outside the transaction; the transaction only
+ * re-checks and writes.
+ */
+async function pullNextInto(
+  sessionId: string,
+  agentId: string,
+  actor: string
+): Promise<string | null> {
+  const at = new Date();
+  const candidateId = await nextTicketFor(prisma, agentId, at);
+
+  return prisma.$transaction(async (tx) => {
+    if (candidateId && (await claimTicket(tx, candidateId))) {
+      await beginTicket(tx, { ticketId: candidateId, agentId, sessionId, actor, at });
+      return candidateId;
+    }
+    await openActivity(tx, sessionId, "IDLE", at);
+    return null;
+  }, TX);
 }
 
 /**
@@ -380,46 +450,24 @@ export async function pendCurrentTicket(
   if (!trimmed) throw new WorkError("A reason is required to mark a ticket pending.");
 
   const at = new Date();
-  return prisma.$transaction(async (tx) => {
-    const session = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: {
-        id: true,
-        activities: {
-          where: { endedAt: null, kind: "TICKET" },
-          select: { id: true, ticketId: true },
-          take: 1,
-        },
-      },
-    });
-    const activity = session?.activities[0];
-    if (!session || !activity?.ticketId) {
-      throw new WorkError("You are not working a ticket.");
-    }
+  const { sessionId, ticketId } = await requireTicketInHand(agentId);
 
-    await closeOpenActivity(tx, session.id, at);
-    const ticket = await tx.ticket.update({
-      where: { id: activity.ticketId },
+  await prisma.$transaction(async (tx) => {
+    await closeOpenActivity(tx, sessionId, at);
+    await tx.ticket.update({
+      where: { id: ticketId },
       data: { status: "ON_HOLD", onHoldSince: at, holdReason: trimmed },
-      select: { id: true },
     });
-
     await writeAudit(tx, {
-      ticketId: ticket.id,
+      ticketId,
       actor,
       event: "HELD",
       details: { holdReason: trimmed, at: at.toISOString() },
     });
+  }, TX);
 
-    const nextId = await nextTicketFor(tx, agentId, at);
-    if (nextId) {
-      await beginTicket(tx, { ticketId: nextId, agentId, sessionId: session.id, actor, at });
-    } else {
-      await openActivity(tx, session.id, "IDLE", at);
-    }
-
-    return { pendedId: ticket.id, nextId };
-  });
+  const nextId = await pullNextInto(sessionId, agentId, actor);
+  return { pendedId: ticketId, nextId };
 }
 
 /**
@@ -438,21 +486,21 @@ export async function setActivity(
   }
 
   const at = new Date();
-  await prisma.$transaction(async (tx) => {
-    const session = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: {
-        id: true,
-        activities: {
-          where: { endedAt: null },
-          select: { kind: true, ticketId: true },
-          take: 1,
-        },
+  const session = await prisma.workSession.findFirst({
+    where: { agentId, endedAt: null },
+    select: {
+      id: true,
+      activities: {
+        where: { endedAt: null },
+        select: { kind: true, ticketId: true },
+        take: 1,
       },
-    });
-    if (!session) throw new WorkError("Start working before changing activity.");
+    },
+  });
+  if (!session) throw new WorkError("Start working before changing activity.");
+  const open = session.activities[0];
 
-    const open = session.activities[0];
+  await prisma.$transaction(async (tx) => {
     await closeOpenActivity(tx, session.id, at);
 
     if (open?.kind === "TICKET" && open.ticketId) {
@@ -465,7 +513,7 @@ export async function setActivity(
     }
 
     await openActivity(tx, session.id, kind, at, undefined, note);
-  });
+  }, TX);
 }
 
 /** Resume a ticket already assigned to this agent (from Pending, or after a break). */
@@ -475,13 +523,13 @@ export async function resumeTicket(
   actor: string
 ): Promise<void> {
   const at = new Date();
-  await prisma.$transaction(async (tx) => {
-    const session = await tx.workSession.findFirst({
-      where: { agentId, endedAt: null },
-      select: { id: true },
-    });
-    if (!session) throw new WorkError("Start working before resuming a ticket.");
+  const session = await prisma.workSession.findFirst({
+    where: { agentId, endedAt: null },
+    select: { id: true },
+  });
+  if (!session) throw new WorkError("Start working before resuming a ticket.");
 
+  await prisma.$transaction(async (tx) => {
     const ticket = await tx.ticket.findUnique({
       where: { id: ticketId },
       select: {
@@ -536,5 +584,5 @@ export async function resumeTicket(
       details: { at: at.toISOString(), dueAt: dueAt.toISOString() },
     });
     await openActivity(tx, session.id, "TICKET", at, ticket.id);
-  });
+  }, TX);
 }
