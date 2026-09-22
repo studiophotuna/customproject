@@ -31,14 +31,38 @@ behind IIS. No cloud hosting, no third-party data stores.
 
 ## Local setup
 
-You need a local SQL Server (Developer or Express edition, or the
-`mcr.microsoft.com/mssql/server:2022-latest` container) reachable on
-`localhost:1433`, and Node 20.9+.
+This app runs locally, against a local SQL Server. It is not deployable to a
+cloud host: the database is on-prem, and dev-mode auth refuses to start when
+`NODE_ENV=production` (see [Authentication](#authentication)).
+
+You need Node 20.9+ and a SQL Server reachable on `localhost:1433` — Developer
+or Express edition, or a container:
 
 ```bash
-cp .env.example .env          # adjust DATABASE_URL for your local instance
+docker run -d --name wat-sql \
+  -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Dev_Passw0rd!" \
+  -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+```
+
+**Create the database before migrating.** `prisma migrate deploy` connects to
+an existing database and will not create one for you:
+
+```bash
+docker exec -i wat-sql /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'Dev_Passw0rd!' -C \
+  -Q "CREATE DATABASE workload_allocation"
+```
+
+(On images before 2022 the path is `/opt/mssql-tools/bin/sqlcmd` and `-C` is not
+needed. With a locally installed SQL Server, run the same `CREATE DATABASE`
+from sqlcmd or SSMS.)
+
+Then:
+
+```bash
+cp .env.example .env          # adjust DATABASE_URL for your instance
 npm install
-npm run db:deploy             # apply prisma/migrations to the database
+npm run db:deploy             # apply prisma/migrations
 npm run db:seed               # agents, shifts, SLA rules, sample tickets
 npm run dev                   # http://localhost:3000
 ```
@@ -50,9 +74,11 @@ npm run worker                # loops; Ctrl-C to stop
 npm run worker:once           # a single pass, then exits
 ```
 
-`npm run db:migrate` (`prisma migrate dev`) is the command to use when you
-change `schema.prisma` and need a new migration; `db:deploy` just applies what
-already exists and is what you want for a first run and for production.
+`npm run db:migrate` (`prisma migrate dev`) is what you want after changing
+`schema.prisma`. It also creates the database if it is missing and runs the
+seed automatically, so it is a workable first-run shortcut — but it is a
+development command and must never be pointed at production. `db:deploy` only
+applies migrations that already exist, and is the production command.
 
 ### Clicking through it
 
