@@ -119,6 +119,27 @@ check("a pass spreads work across agents and respects caps", () => {
   assert.equal(perAgent.has("leave"), false);
 });
 
+check("one pass levels load out instead of filling one agent to cap", () => {
+  // Regression: leastLoaded must sort on the LIVE load tracked during the pass,
+  // not the stale counts read from the database. Filtering the original agent
+  // objects gave the emptiest agent every ticket until they hit their cap.
+  const pending = Array.from({ length: 6 }, (_, i) => ticket(`t${i + 1}`, i, (i + 1) * 60));
+  const agents = [
+    agent("alice", { openTicketCount: 2, concurrentCap: 5 }),
+    agent("bob", { openTicketCount: 2, concurrentCap: 3 }),
+    agent("sam", { openTicketCount: 0, concurrentCap: 4 }),
+  ];
+
+  const tally: Record<string, number> = {};
+  for (const p of allocate(pending, agents)) {
+    tally[p.agentId] = (tally[p.agentId] ?? 0) + 1;
+  }
+
+  assert.deepEqual(tally, { sam: 3, alice: 2, bob: 1 });
+  // Nobody is left idle while someone else is saturated.
+  assert.ok(tally.bob > 0, "bob must receive work rather than being starved");
+});
+
 check("nothing is allocated when nobody is available", () => {
   const plan = allocate([ticket("t1", 0, 60)], [agent("off", { onShiftNow: false })]);
   assert.deepEqual(plan, []);

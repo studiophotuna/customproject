@@ -17,7 +17,7 @@ export interface Identity extends RawPrincipal {
 }
 
 export interface IdentityProvider {
-  readonly mode: "iis" | "entra" | "dev";
+  readonly mode: "iis" | "entra" | "dev" | "demo";
   /**
    * Resolve the caller from the incoming request headers. Implementations must
    * not perform network calls on the request path — group membership arrives in

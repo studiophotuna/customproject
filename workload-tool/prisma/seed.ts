@@ -56,6 +56,8 @@ async function main(): Promise<void> {
   const data = buildSeedData();
 
   // Order matters: children before parents.
+  await prisma.activityLog.deleteMany();
+  await prisma.workSession.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.assignment.deleteMany();
   await prisma.ticket.deleteMany();
@@ -64,6 +66,7 @@ async function main(): Promise<void> {
   await prisma.ingestionRule.deleteMany();
   await prisma.mailboxConfig.deleteMany();
   await prisma.slaRule.deleteMany();
+  await prisma.appSetting.deleteMany();
 
   await prisma.slaRule.createMany({ data: data.slaRules });
   await prisma.agent.createMany({ data: data.agents });
@@ -73,6 +76,9 @@ async function main(): Promise<void> {
   await prisma.ticket.createMany({ data: data.tickets });
   await prisma.assignment.createMany({ data: data.assignments });
   await prisma.auditLog.createMany({ data: data.auditLogs });
+  await prisma.appSetting.createMany({ data: data.appSettings });
+  await prisma.workSession.createMany({ data: data.workSessions });
+  await prisma.activityLog.createMany({ data: data.activities });
 
   console.log("Seed complete:", {
     agents: data.agents.length,
@@ -83,6 +89,9 @@ async function main(): Promise<void> {
       (t) => t.status === "NEW" && t.currentAssigneeId === null
     ).length,
     auditRows: data.auditLogs.length,
+    settings: data.appSettings.length,
+    workSessions: data.workSessions.length,
+    activities: data.activities.length,
   });
   console.log(
     "Sign in as any seeded upn via the dev identity switcher, e.g. leader@contoso.local."

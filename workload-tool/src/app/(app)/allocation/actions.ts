@@ -14,10 +14,9 @@ export interface OverrideState {
 /**
  * Leader manual override / reassignment.
  *
- * Deliberately allowed to exceed an agent's concurrent cap — a leader
- * overriding the allocator is making a judgement the allocator cannot, so the
- * cap is reported back as information rather than enforced as a block. The
- * override is recorded in the audit trail either way.
+ * Deliberately allowed to exceed an agent's concurrent cap: a leader overriding
+ * the allocator is making a judgement the allocator cannot. The cap is reported
+ * as information, and the override is recorded in the audit trail either way.
  */
 export async function overrideAssignmentAction(
   _previous: OverrideState,
@@ -29,18 +28,14 @@ export async function overrideAssignmentAction(
   const agentId = String(formData.get("agentId") ?? "");
   const note = String(formData.get("note") ?? "").trim();
 
-  if (!ticketId || !agentId) {
-    return { error: "Pick an agent before applying an override." };
-  }
+  if (!ticketId || !agentId) return { error: "Pick an agent first." };
 
   const ticket = await prisma.ticket.findUnique({
     where: { id: ticketId },
     select: { id: true, status: true, currentAssigneeId: true, subject: true },
   });
   if (!ticket) return { error: "Ticket not found." };
-  if (ticket.status === "CLOSED") {
-    return { error: "Closed tickets cannot be reassigned." };
-  }
+  if (ticket.status === "CLOSED") return { error: "Closed tickets cannot be reassigned." };
   if (ticket.currentAssigneeId === agentId) {
     return { error: "That agent already holds this ticket." };
   }
@@ -53,20 +48,16 @@ export async function overrideAssignmentAction(
         ticketId: ticket.id,
         agentId,
         actor: identity.upn,
-        // A move between agents is a REASSIGN; taking an unallocated or
-        // auto-allocated ticket by hand is a MANUAL_OVERRIDE.
         reason: wasAssigned ? "REASSIGN" : "MANUAL_OVERRIDE",
         note: note || undefined,
       });
     });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Override failed.",
-    };
+    return { error: error instanceof Error ? error.message : "Override failed." };
   }
 
-  revalidatePath("/leader");
-  revalidatePath("/queue");
-  revalidatePath(`/tickets/${ticket.id}`);
+  revalidatePath("/allocation");
+  revalidatePath("/tickets");
+  revalidatePath("/");
   return { ok: `${ticket.subject} reassigned.` };
 }

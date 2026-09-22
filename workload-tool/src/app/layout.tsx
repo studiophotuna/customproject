@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 import "./globals.css";
-import { AppHeader } from "@/components/AppHeader";
 
 export const metadata: Metadata = {
-  title: "Workload Allocation",
-  description: "Internal work request allocation and SLA tracking.",
+  title: "WorkloadFlow",
+  description:
+    "Internal workload allocation: time-bound job tickets auto-allocated to available FTEs by SLA and shift rules.",
 };
 
 export default function RootLayout({
@@ -13,10 +13,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen">
-        <AppHeader />
-        <main className="mx-auto max-w-[1400px] px-6 py-6">{children}</main>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

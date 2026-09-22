@@ -11,6 +11,7 @@
 import { randomUUID } from "node:crypto";
 
 import { dueAtFor } from "../src/lib/sla";
+import { SETTING_DEFINITIONS } from "../src/lib/domain/work";
 
 export interface AgentRow {
   id: string;
@@ -89,6 +90,30 @@ export interface IngestionRuleRow {
   ruleOrder: number;
 }
 
+export interface AppSettingRow {
+  key: string;
+  value: string;
+  label: string;
+  description: string | null;
+}
+
+export interface WorkSessionRow {
+  id: string;
+  agentId: string;
+  startedAt: Date;
+  endedAt: Date | null;
+}
+
+export interface ActivityRow {
+  id: string;
+  sessionId: string;
+  kind: string;
+  ticketId: string | null;
+  startedAt: Date;
+  endedAt: Date | null;
+  note: string | null;
+}
+
 export interface SeedData {
   agents: AgentRow[];
   shifts: ShiftRow[];
@@ -98,6 +123,9 @@ export interface SeedData {
   tickets: TicketRow[];
   assignments: AssignmentRow[];
   auditLogs: AuditRow[];
+  appSettings: AppSettingRow[];
+  workSessions: WorkSessionRow[];
+  activities: ActivityRow[];
 }
 
 const AGENTS = [
@@ -277,5 +305,94 @@ export function buildSeedData(now: Date = new Date()): SeedData {
     }
   }
 
-  return { agents, shifts, slaRules, mailboxes, ingestionRules, tickets, assignments, auditLogs };
+  // --- Admin-editable targets ------------------------------------------------
+  const appSettings: AppSettingRow[] = SETTING_DEFINITIONS.map((def) => ({
+    key: def.key,
+    value: def.fallback,
+    label: def.label,
+    description: def.description,
+  }));
+
+  // --- A day of recorded time -------------------------------------------------
+  // Without this the utilization and timeliness panels would open empty, which
+  // reads as "broken" rather than "nobody has worked yet". Alice and Sam have a
+  // closed session each; Bob is still clocked in and mid-ticket, so a live timer
+  // is visible the moment the app is opened.
+  const workSessions: WorkSessionRow[] = [];
+  const activities: ActivityRow[] = [];
+
+  const ticketOf = (subject: string) =>
+    tickets.find((t) => t.subject === subject)?.id ?? null;
+
+  function session(
+    agentUpn: string,
+    startMinutesAgo: number,
+    endMinutesAgo: number | null,
+    spans: { kind: string; minutes: number; ticket?: string | null; note?: string }[]
+  ): void {
+    const agentId = byUpn.get(agentUpn);
+    if (!agentId) return;
+
+    const sessionId = randomUUID();
+    workSessions.push({
+      id: sessionId,
+      agentId,
+      startedAt: minutesAgo(startMinutesAgo),
+      endedAt: endMinutesAgo === null ? null : minutesAgo(endMinutesAgo),
+    });
+
+    let cursor = startMinutesAgo;
+    for (const span of spans) {
+      const endsAt = cursor - span.minutes;
+      activities.push({
+        id: randomUUID(),
+        sessionId,
+        kind: span.kind,
+        ticketId: span.ticket ? ticketOf(span.ticket) : null,
+        startedAt: minutesAgo(cursor),
+        // A negative end means the span is still running.
+        endedAt: endsAt <= 0 ? null : minutesAgo(endsAt),
+        note: span.note ?? null,
+      });
+      cursor = endsAt;
+      if (cursor <= 0) break;
+    }
+  }
+
+  session("alice@contoso.local", 420, 30, [
+    { kind: "TICKET", minutes: 95, ticket: "Shared drive permissions for HR" },
+    { kind: "MEETING", minutes: 45, note: "Weekly ops sync" },
+    { kind: "TICKET", minutes: 130, ticket: "Printer offline on 3rd floor" },
+    { kind: "BREAK", minutes: 40 },
+    { kind: "ADHOC", minutes: 80, note: "Rate sheet validation" },
+  ]);
+
+  session("leader@contoso.local", 400, 60, [
+    { kind: "TICKET", minutes: 120, ticket: "Update DNS for intranet migration" },
+    { kind: "MEETING", minutes: 60, note: "Capacity review" },
+    { kind: "ADHOC", minutes: 70, note: "Queue triage" },
+    { kind: "BREAK", minutes: 30 },
+  ]);
+
+  // Still open: Bob is on shift and currently working a ticket.
+  session("bob@contoso.local", 260, null, [
+    { kind: "TICKET", minutes: 85, ticket: "Archive mailboxes for leavers Q3" },
+    { kind: "BREAK", minutes: 25 },
+    { kind: "TRAINING", minutes: 50, note: "New tariff process" },
+    { kind: "TICKET", minutes: 200, ticket: "SSO login loop for contractors" },
+  ]);
+
+  return {
+    agents,
+    shifts,
+    slaRules,
+    mailboxes,
+    ingestionRules,
+    tickets,
+    assignments,
+    auditLogs,
+    appSettings,
+    workSessions,
+    activities,
+  };
 }

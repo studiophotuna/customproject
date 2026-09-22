@@ -147,9 +147,14 @@ export function allocate(
   const plan: PlannedAssignment[] = [];
 
   for (const ticket of order(pending)) {
-    const available = agents.filter((a) =>
-      isAvailable({ ...a, openTicketCount: load.get(a.id) ?? a.openTicketCount })
-    );
+    // Project each agent onto their LIVE load before both the availability
+    // check and the policy choice. Filtering the original objects would hand
+    // `pick` the stale database counts, so leastLoaded would keep choosing
+    // whoever started the pass emptiest until they hit their cap instead of
+    // levelling the work out.
+    const available = agents
+      .map((a) => ({ ...a, openTicketCount: load.get(a.id) ?? a.openTicketCount }))
+      .filter(isAvailable);
     const agent = pick(available);
     if (!agent) continue; // no capacity right now; ticket waits for the next pass
 

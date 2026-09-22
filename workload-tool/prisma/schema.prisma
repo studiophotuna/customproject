@@ -36,6 +36,7 @@ model Agent {
   shifts         Shift[]
   assignments    Assignment[]
   currentTickets Ticket[]     @relation("CurrentAssignee")
+  workSessions   WorkSession[]
   createdAt      DateTime     @default(now())
 }
 
@@ -81,6 +82,7 @@ model Ticket {
   status                String       @db.NVarChar(20) // NEW | ASSIGNED | IN_PROGRESS | ON_HOLD | RESOLVED | CLOSED
   currentAssignee       Agent?       @relation("CurrentAssignee", fields: [currentAssigneeId], references: [id])
   currentAssigneeId     String?      @db.UniqueIdentifier
+  startedAt             DateTime?    // first moment an agent actually began work
   onHoldSince           DateTime?
   holdAccumulatedMinutes Int         @default(0)
   holdReason            String?      @db.NVarChar(400)
@@ -88,6 +90,7 @@ model Ticket {
   closedAt              DateTime?
   assignments           Assignment[]
   events                AuditLog[]
+  activities            ActivityLog[]
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -151,4 +154,64 @@ model IngestionRule {
   ruleOrder  Int           @default(100)
 
   @@index([mailboxId, ruleOrder])
+}
+
+// -----------------------------------------------------------------------------
+// TIME TRACKING
+// -----------------------------------------------------------------------------
+// Utilization and timeliness are measured, not estimated, so the time an agent
+// spends has to be recorded as it happens rather than derived from ticket
+// timestamps afterwards.
+
+/// One clock-in..clock-out span. Opened by "Start working", closed by
+/// "Stop working". An agent has at most one open session at a time; the app
+/// enforces that, since SQL Server cannot express a partial unique index the
+/// same way across both targets.
+model WorkSession {
+  id         String        @id @default(uuid()) @db.UniqueIdentifier
+  agentId    String        @db.UniqueIdentifier
+  agent      Agent         @relation(fields: [agentId], references: [id])
+  startedAt  DateTime      @default(now())
+  endedAt    DateTime?
+  activities ActivityLog[]
+
+  @@index([agentId, startedAt])
+  @@index([agentId, endedAt]) // find the open session fast
+}
+
+/// Where an agent's time actually went. Exactly one activity is open at a time
+/// within a session; starting a new one closes the previous.
+///
+/// `kind` TICKET carries a ticketId; the others are standing states. Handle time
+/// for a ticket is the sum of its TICKET rows, which is why a ticket that is
+/// paused and resumed accumulates correctly without extra bookkeeping.
+///
+/// Utilization counts TICKET + MEETING + ADHOC against the daily target.
+/// BREAK and IDLE are recorded but do not count as worked time.
+model ActivityLog {
+  id        String      @id @default(uuid()) @db.UniqueIdentifier
+  sessionId String      @db.UniqueIdentifier
+  session   WorkSession @relation(fields: [sessionId], references: [id])
+  kind      String      @db.NVarChar(20) // TICKET | BREAK | MEETING | ADHOC | TRAINING | IDLE
+  ticketId  String?     @db.UniqueIdentifier
+  ticket    Ticket?     @relation(fields: [ticketId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  startedAt DateTime    @default(now())
+  endedAt   DateTime?
+  note      String?     @db.NVarChar(400)
+
+  @@index([sessionId, startedAt])
+  @@index([ticketId])
+  @@index([kind, startedAt])
+}
+
+/// Admin-editable configuration: daily utilization target, break allowance, and
+/// anything else an admin should change without a deployment. Values are strings
+/// so one table covers numbers, booleans and durations; readers coerce.
+model AppSetting {
+  key         String   @id @db.NVarChar(80)
+  value       String   @db.NVarChar(400)
+  label       String   @db.NVarChar(200)
+  description String?  @db.NVarChar(400)
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?  @db.NVarChar(256)
 }

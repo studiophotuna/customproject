@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { hasAtLeast, type Role } from "@/lib/domain/constants";
 import { roleFromAgent, roleFromGroups } from "@/lib/auth/roles";
+import { demoProvider } from "@/lib/auth/providers/demo";
 import { devProvider } from "@/lib/auth/providers/dev";
 import { entraProvider } from "@/lib/auth/providers/entra";
 import { iisProvider } from "@/lib/auth/providers/iis";
@@ -11,19 +12,28 @@ import type { Identity, IdentityProvider } from "@/lib/auth/types";
 
 export type { Identity } from "@/lib/auth/types";
 export { DEV_COOKIE } from "@/lib/auth/providers/dev";
+export { DEMO_COOKIE } from "@/lib/auth/providers/demo";
 
 const PROVIDERS: Record<string, IdentityProvider> = {
   iis: iisProvider,
   entra: entraProvider,
   dev: devProvider,
+  demo: demoProvider,
 };
 
-export function authMode(): "iis" | "entra" | "dev" {
+export type AuthMode = "iis" | "entra" | "dev" | "demo";
+
+export function authMode(): AuthMode {
   const mode = (process.env.AUTH_MODE ?? "dev").toLowerCase();
-  if (mode in PROVIDERS) return mode as "iis" | "entra" | "dev";
+  if (mode in PROVIDERS) return mode as AuthMode;
   throw new Error(
-    `Unknown AUTH_MODE "${mode}". Expected one of: iis, entra, dev.`
+    `Unknown AUTH_MODE "${mode}". Expected one of: iis, entra, dev, demo.`
   );
+}
+
+/** True when the app is running with no real authentication. */
+export function isOpenDemo(): boolean {
+  return authMode() === "demo";
 }
 
 /**
