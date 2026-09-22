@@ -37,6 +37,18 @@ function insert<T extends object>(
   return `INSERT INTO "${APP_SCHEMA}"."${table}" (${cols}) VALUES\n${values};\n`;
 }
 
+/** AppSetting has a NOT NULL updatedAt with no default, so it is written explicitly. */
+function insertSettings(rows: { key: string; value: string; label: string; description: string | null }[]): string {
+  if (rows.length === 0) return "";
+  const values = rows
+    .map(
+      (r) =>
+        `  (${lit(r.key)}, ${lit(r.value)}, ${lit(r.label)}, ${lit(r.description)}, now())`
+    )
+    .join(",\n");
+  return `INSERT INTO "${APP_SCHEMA}"."AppSetting" ("key", "value", "label", "description", "updatedAt") VALUES\n${values};\n`;
+}
+
 function main(): void {
   const d = buildSeedData();
   const q = (t: string) => `"${APP_SCHEMA}"."${t}"`;
@@ -49,6 +61,8 @@ function main(): void {
     "BEGIN;",
     "",
     "-- Children before parents.",
+    `DELETE FROM ${q("ActivityLog")};`,
+    `DELETE FROM ${q("WorkSession")};`,
     `DELETE FROM ${q("AuditLog")};`,
     `DELETE FROM ${q("Assignment")};`,
     `DELETE FROM ${q("Ticket")};`,
@@ -57,6 +71,7 @@ function main(): void {
     `DELETE FROM ${q("IngestionRule")};`,
     `DELETE FROM ${q("MailboxConfig")};`,
     `DELETE FROM ${q("SlaRule")};`,
+    `DELETE FROM ${q("AppSetting")};`,
     "",
     insert("SlaRule", ["id", "ticketType", "slaMinutes", "businessHoursOnly", "active"], d.slaRules),
     insert("Agent", ["id", "adUpn", "displayName", "role", "concurrentCap", "active"], d.agents),
@@ -74,6 +89,9 @@ function main(): void {
     ),
     insert("Assignment", ["id", "ticketId", "agentId", "reason", "assignedAt", "unassignedAt"], d.assignments),
     insert("AuditLog", ["id", "ticketId", "actor", "event", "detailsJson", "at"], d.auditLogs),
+    insertSettings(d.appSettings),
+    insert("WorkSession", ["id", "agentId", "startedAt", "endedAt"], d.workSessions),
+    insert("ActivityLog", ["id", "sessionId", "kind", "ticketId", "startedAt", "endedAt", "note"], d.activities),
     "COMMIT;",
   ];
 
