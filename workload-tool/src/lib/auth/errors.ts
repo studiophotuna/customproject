@@ -29,10 +29,10 @@ export function configurationProblem(error: unknown): string | null {
   const message =
     error instanceof Error ? error.message : typeof error === "string" ? error : "";
 
-  if (/Environment variable not found: (DATABASE_URL|DIRECT_URL)/i.test(message)) {
+  if (/Environment variable not found: DATABASE_URL/i.test(message)) {
     return (
-      "The database connection string is not set, so the app cannot read or " +
-      "write anything. Add DATABASE_URL and DIRECT_URL, then redeploy."
+      "DATABASE_URL is not set, so the app cannot read or write anything. " +
+      "Add it and redeploy — it is the only variable this deployment needs."
     );
   }
 

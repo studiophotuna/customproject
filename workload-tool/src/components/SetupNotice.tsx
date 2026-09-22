@@ -40,12 +40,6 @@ What this deployment needs
             </span>
             <b>Supabase session pooler, port 5432</b>
           </div>
-          <div className="rule">
-            <span>
-              <code>DIRECT_URL</code>
-            </span>
-            <b>the same value</b>
-          </div>
           <p style={{ color: "var(--muted)", fontSize: 12, marginBottom: 0 }}>
             Use the <b>Session pooler</b> connection string (port 5432), not the
             transaction pooler (6543) — this app relies on interactive

@@ -36,18 +36,22 @@ function convertDatasource(schema: string): string {
   return schema.replace(
     block,
     `datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // Migrations need a direct (session-mode) connection. On Supabase, DIRECT_URL
-  // is the :5432 connection string. Interactive transactions do not work
-  // through a transaction-mode pooler, and this app relies on them for
-  // ticket + audit atomicity — see the README.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // ONE connection string, and it must be the SESSION-mode one (port 5432).
+  //
+  // There is deliberately no directUrl: directUrl exists to give migrations a
+  // non-pooled connection when the app runs through a transaction-mode pooler,
+  // and this app cannot use a transaction-mode pooler at all — its interactive
+  // transactions, which keep a ticket change and its audit row atomic, do not
+  // survive one. Since the app and migrations both need the session connection,
+  // a second variable would only be the same value twice, with a chance of the
+  // two drifting apart.
+  url      = env("DATABASE_URL")
   // This app owns exactly one schema. Scoping it here is what makes it safe to
   // share a database with an unrelated application: Prisma neither reads nor
   // migrates anything outside "${APP_SCHEMA}", so another app's tables can
   // never register as drift and can never be dropped by a migration.
-  schemas   = ["${APP_SCHEMA}"]
+  schemas  = ["${APP_SCHEMA}"]
 }`
   );
 }

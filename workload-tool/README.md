@@ -203,11 +203,16 @@ depends on `search_path` either.
 #### Commands
 
 ```bash
-# set DATABASE_URL and DIRECT_URL first (see .env.example)
+# set DATABASE_URL first (see .env.example) — it is the only one needed
 npm run pg:generate    # regenerate the variant schema + Prisma Client
 npm run pg:deploy      # apply prisma/postgres/migrations
 SEED_ALLOW_NONLOCAL=1 npm run pg:seed
 ```
+
+There is no `DIRECT_URL`. `directUrl` exists to give migrations a non-pooled
+connection when the app runs through a transaction-mode pooler; this app cannot
+use one at all (see below), so a second variable would only be the same value
+twice with a chance of the two drifting apart.
 
 If you cannot reach the database with Prisma (no password to hand), emit the
 seed as SQL instead and paste it into the Supabase SQL editor — same dataset,
