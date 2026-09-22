@@ -1,0 +1,18 @@
+[
+  {
+    "adUpn": "carol@contoso.local",
+    "from": "2020-01-01T00:00:00.000Z",
+    "to": "2099-01-01T00:00:00.000Z",
+    "kind": "LEAVE",
+    "blocksAllocation": true,
+    "note": "Stub row: Carol is permanently 'on leave' so the allocator visibly skips her. Delete this entry to make her allocatable."
+  },
+  {
+    "adUpn": "bob@contoso.local",
+    "from": "2020-01-01T00:00:00.000Z",
+    "to": "2099-01-01T00:00:00.000Z",
+    "kind": "WFH",
+    "blocksAllocation": false,
+    "note": "Stub row: WFH that does NOT block allocation, to show the policy flag working."
+  }
+]
