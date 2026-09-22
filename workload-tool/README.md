@@ -67,12 +67,17 @@ npm run db:seed               # agents, shifts, SLA rules, sample tickets
 npm run dev                   # http://localhost:3000
 ```
 
-In a second terminal, start the allocator:
+In a second terminal, start the ingestion worker:
 
 ```bash
 npm run worker                # loops; Ctrl-C to stop
 npm run worker:once           # a single pass, then exits
 ```
+
+The worker turns inbound mail into tickets. It does **not** hand them out —
+a ticket is assigned at the moment a member presses **Start working**, so nobody
+holds work they are not actually doing. `WORKER_AUTO_ALLOCATE=true` re-enables a
+push sweep if that is ever wanted.
 
 `npm run db:migrate` (`prisma migrate dev`) is what you want after changing
 `schema.prisma`. It also creates the database if it is missing and runs the

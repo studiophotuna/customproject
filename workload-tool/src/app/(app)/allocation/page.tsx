@@ -47,7 +47,7 @@ export default async function AllocationPage() {
     <>
       <PageHead
         title="Allocation Monitor"
-        description={`Ordering ${config.ordering} · policy ${config.policy}. Tickets are pulled when a member starts working, and swept by the background worker.`}
+        description={`Ordering ${config.ordering} · policy ${config.policy}. Tickets are assigned only when a member starts working — nothing is pushed to someone who is logged off.`}
       />
 
       <div className="two">

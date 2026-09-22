@@ -36,6 +36,14 @@ export function configurationProblem(error: unknown): string | null {
     );
   }
 
+  if (/EMAXCONNSESSION|max clients reached|too many connections/i.test(message)) {
+    return (
+      "The database is refusing new connections because its pool is full. " +
+      "This usually clears within a minute; if it persists, the connection " +
+      "string should carry connection_limit=1."
+    );
+  }
+
   // A wrong-but-present connection string is also a setup problem, not a bug.
   if (/Can't reach database server|P1001/i.test(message)) {
     return (

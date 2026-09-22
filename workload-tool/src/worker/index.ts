@@ -1,12 +1,23 @@
-// Allocation worker — a standalone process, not a web request.
+// Ingestion worker — a standalone process, not a web request.
 // -----------------------------------------------------------------------------
 //   npm run worker        # loop forever, WORKER_INTERVAL_MS between passes
 //   npm run worker:once   # a single pass, then exit (cron / manual runs)
 //
-// It is deliberately independent of the Next.js server: no HTTP entry point can
-// trigger allocation, so a slow pass cannot hold a user request open and a web
-// restart cannot interrupt an in-flight assignment. In production this runs as
-// a Windows Service (or a scheduled task using --once) next to the site.
+// Its job is to turn the team's inbound Outlook volume into tickets. Those
+// tickets sit unassigned until somebody presses "Start working" — the work
+// console pulls them one at a time.
+//
+// It does NOT hand tickets out on its own. Push allocation would put work in
+// someone's queue while they are logged off, which breaks the rule that a
+// person only ever holds a ticket they are actually working. The allocation
+// pass is still here, behind WORKER_AUTO_ALLOCATE, because the engine and its
+// persistence are shared with the pull path and are worth being able to run as
+// a sweep — but it is off unless explicitly enabled.
+//
+// It is deliberately independent of the Next.js server: a slow pass cannot hold
+// a user request open, and a web restart cannot interrupt an in-flight write.
+// In production this runs as a Windows Service (or a scheduled task using
+// --once) next to the site.
 
 import { prisma } from "@/lib/db/prisma";
 import { configFromEnv, runAllocationPass } from "@/lib/allocation/run";
@@ -22,6 +33,13 @@ try {
 const ONCE = process.argv.includes("--once");
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15_000);
 
+/**
+ * Off by default: tickets are allocated when a member starts working, not
+ * pushed to them beforehand. Set WORKER_AUTO_ALLOCATE=true only if you want a
+ * sweep that assigns queued work to whoever is on shift.
+ */
+const AUTO_ALLOCATE = (process.env.WORKER_AUTO_ALLOCATE ?? "false").toLowerCase() === "true";
+
 let stopping = false;
 
 function log(event: string, fields: Record<string, unknown> = {}): void {
@@ -35,9 +53,18 @@ function log(event: string, fields: Record<string, unknown> = {}): void {
 async function pass(): Promise<void> {
   const started = Date.now();
 
-  // Mail ingestion runs first so anything that arrived is in the queue before
-  // allocation looks at it. Today this is a no-op: only the stub adapter exists.
+  // Turn inbound mail into tickets. Today this is a no-op in practice: only the
+  // stub adapter exists until the Exchange vs Graph decision is made.
   const ingested = await ingestMailbox();
+
+  if (!AUTO_ALLOCATE) {
+    log("ingest.pass", {
+      ms: Date.now() - started,
+      ingested,
+      allocation: "pull-only — members are assigned work when they start working",
+    });
+    return;
+  }
 
   const result = await runAllocationPass();
 
@@ -60,6 +87,7 @@ async function main(): Promise<void> {
   log("worker.start", {
     mode: ONCE ? "once" : "loop",
     intervalMs: ONCE ? null : INTERVAL_MS,
+    autoAllocate: AUTO_ALLOCATE,
     ordering: config.ordering,
     policy: config.policy,
   });
@@ -75,7 +103,7 @@ async function main(): Promise<void> {
     } catch (error) {
       // A failed pass must not kill the worker: the tickets are still pending
       // and the next pass retries them.
-      log("allocation.error", {
+      log("worker.error", {
         message: error instanceof Error ? error.message : String(error),
       });
     }

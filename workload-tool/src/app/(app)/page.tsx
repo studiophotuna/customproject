@@ -45,7 +45,7 @@ export default async function DashboardPage() {
     <>
       <PageHead
         title="Queue Dashboard"
-        description="Allocation is automatic. Members are given work; they do not claim it."
+        description="Tickets arrive from the team's mailbox. They are assigned automatically — but only when a member starts working, never pushed to someone who is logged off."
         actions={
           <Link className="btn primary" href="/my-work">
             Go to my work
@@ -172,7 +172,11 @@ export default async function DashboardPage() {
           </div>
           <div className="rule">
             <span>Delivery</span>
-            <b>Pull on &quot;start working&quot; + background worker</b>
+            <b>Pull — assigned on &quot;start working&quot;</b>
+          </div>
+          <div className="rule">
+            <span>Ticket source</span>
+            <b>Inbound mail volume for the team</b>
           </div>
           <div className="notice" style={{ marginTop: 14 }}>
             The queue is ordered by SLA due time, with arrival time breaking ties
