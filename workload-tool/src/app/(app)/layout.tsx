@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { authMode, getIdentity, isOpenDemo } from "@/lib/auth";
-import { ConfigurationError } from "@/lib/auth/errors";
+import { configurationProblem } from "@/lib/auth/errors";
 import { SetupNotice } from "@/components/SetupNotice";
 import { hasAtLeast, type Role } from "@/lib/domain/constants";
 import { SideNav } from "@/components/SideNav";
@@ -50,9 +50,8 @@ export default async function AppLayout({
     identity = await getIdentity();
   } catch (error) {
     // A deployment missing its configuration should say so, not 500.
-    if (error instanceof ConfigurationError) {
-      return <SetupNotice detail={error.message} />;
-    }
+    const problem = configurationProblem(error);
+    if (problem) return <SetupNotice detail={problem} />;
     throw error;
   }
 

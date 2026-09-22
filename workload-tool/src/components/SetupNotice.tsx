@@ -26,13 +26,13 @@ export function SetupNotice({ detail }: { detail: string }) {
 
         <div className="panel">
           <h3 style={{ fontSize: 13, margin: "0 0 10px" }}>
-            Set these in Vercel → Settings → Environment Variables
+What this deployment needs
           </h3>
           <div className="rule">
             <span>
               <code>AUTH_MODE</code>
             </span>
-            <b>demo</b>
+            <b style={{ color: "var(--green)" }}>already set in vercel.json</b>
           </div>
           <div className="rule">
             <span>

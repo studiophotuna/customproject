@@ -15,7 +15,35 @@ export class ConfigurationError extends Error {
   }
 }
 
-/** Survives the server/client boundary, where instanceof does not. */
-export function isConfigurationMessage(message: string): boolean {
-  return message.includes("AUTH_MODE") || message.includes("DATABASE_URL");
+/**
+ * Recognise a "this deployment is missing its configuration" failure.
+ *
+ * Covers our own ConfigurationError and Prisma's initialization error for an
+ * unresolvable datasource url — both mean the same thing to whoever is setting
+ * the deployment up, even though they come from different layers. Returns the
+ * text to show, or null if this is a genuine fault that should surface as one.
+ */
+export function configurationProblem(error: unknown): string | null {
+  if (error instanceof ConfigurationError) return error.message;
+
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+
+  if (/Environment variable not found: (DATABASE_URL|DIRECT_URL)/i.test(message)) {
+    return (
+      "The database connection string is not set, so the app cannot read or " +
+      "write anything. Add DATABASE_URL and DIRECT_URL, then redeploy."
+    );
+  }
+
+  // A wrong-but-present connection string is also a setup problem, not a bug.
+  if (/Can't reach database server|P1001/i.test(message)) {
+    return (
+      "The database connection string is set, but the server could not be " +
+      "reached. Check that it is the Session pooler string on port 5432 and " +
+      "that the Supabase project is not paused."
+    );
+  }
+
+  return null;
 }

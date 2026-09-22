@@ -1,5 +1,5 @@
 import { authMode, getIdentity } from "@/lib/auth";
-import { ConfigurationError } from "@/lib/auth/errors";
+import { configurationProblem } from "@/lib/auth/errors";
 import { SetupNotice } from "@/components/SetupNotice";
 import { prisma } from "@/lib/db/prisma";
 import { chooseIdentity } from "@/app/signin/actions";
@@ -20,9 +20,8 @@ export default async function SignInPage() {
   try {
     mode = authMode();
   } catch (error) {
-    if (error instanceof ConfigurationError) {
-      return <SetupNotice detail={error.message} />;
-    }
+    const problem = configurationProblem(error);
+    if (problem) return <SetupNotice detail={problem} />;
     throw error;
   }
 
@@ -34,18 +33,26 @@ export default async function SignInPage() {
   try {
     existing = await getIdentity();
   } catch (error) {
-    if (error instanceof ConfigurationError) {
-      return <SetupNotice detail={error.message} />;
-    }
+    const problem = configurationProblem(error);
+    if (problem) return <SetupNotice detail={problem} />;
     throw error;
   }
   if (existing) redirect("/my-work");
 
-  const agents = await prisma.agent.findMany({
-    where: { active: true },
-    select: { adUpn: true, displayName: true, role: true, concurrentCap: true },
-    orderBy: [{ role: "asc" }, { displayName: "asc" }],
-  });
+  // Reading the identity list is the first database call a visitor makes, so an
+  // unconfigured deployment surfaces here before anything else.
+  let agents;
+  try {
+    agents = await prisma.agent.findMany({
+      where: { active: true },
+      select: { adUpn: true, displayName: true, role: true, concurrentCap: true },
+      orderBy: [{ role: "asc" }, { displayName: "asc" }],
+    });
+  } catch (error) {
+    const problem = configurationProblem(error);
+    if (problem) return <SetupNotice detail={problem} />;
+    throw error;
+  }
 
   return (
     <div className="signin-wrap">
