@@ -10,6 +10,11 @@ behind IIS. No cloud hosting, no third-party data stores.
 > unrelated storefront application at the repo root. It is fully self-contained:
 > its own `package.json`, `node_modules`, config and build. Run every command
 > below from **this** directory.
+>
+> The root `tsconfig.json` and `eslint.config.mjs` exclude `workload-tool/`.
+> Keep it that way: the root `include` is `**/*.ts`, and its `@/*` alias points
+> at the root's own `src/`, so without the exclusion the storefront's build
+> type-checks this app against the wrong paths and fails.
 
 ## What is built (Phases 1–2)
 

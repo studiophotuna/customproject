@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Self-contained app with its own toolchain and tsconfig; it lints itself.
+    "workload-tool/**",
   ]),
 ]);
 
