@@ -1,0 +1,175 @@
+// ⚠️  GENERATED FILE — DO NOT EDIT.
+//
+// Produced from prisma/schema.prisma by scripts/gen-postgres-schema.ts.
+// Edit the source schema and run `npm run pg:schema` instead; any change made
+// here is lost on the next generation.
+//
+// Differences from the source, and nothing else:
+//   * datasource provider sqlserver -> postgresql, plus directUrl
+//   * @db.UniqueIdentifier -> @db.Uuid
+//   * @db.NVarChar(Max)    -> @db.Text
+//   * @db.NVarChar(n)      -> @db.VarChar(n)
+//
+// NOTE: the NoAction referential actions on Assignment.agent are a SQL Server
+// requirement (it rejects multiple cascade paths). Postgres does not need them,
+// but they are kept so both targets behave identically.
+
+// Workload Allocation Tool — data model
+// -----------------------------------------------------------------------------
+// Provider: SQL Server (on-prem, internally hosted).
+//
+// SQL Server connector notes that shaped this schema:
+//   * The sqlserver connector does NOT support Prisma native enums, so
+//     status / role / source / etc. are Strings with the allowed values
+//     documented inline. Enforce them in the app layer (or with CHECK
+//     constraints via a migration) rather than a Prisma enum.
+//   * There is no native Json type — JSON payloads use NVarChar(Max) Strings.
+//
+// SLA is SNAPSHOTTED onto each Ticket at receipt (ticketType + dueAt), rather
+// than FK'd to SlaRule, so that later edits to the SLA matrix never retroactively
+// change the clock on tickets already in flight.
+// -----------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migrations and introspection need a direct (session-mode) connection.
+  // On Supabase, DIRECT_URL is the :5432 connection string. Interactive
+  // transactions do not work through a transaction-mode pooler, and this app
+  // relies on them for ticket + audit atomicity — see the README.
+  directUrl = env("DIRECT_URL")
+}
+
+/// An FTE. Identity is the AD user; `role` and availability derive from AD group
+/// membership and the leave/WFH scheduler. `active` disables an agent for new
+/// allocation without deleting their history.
+model Agent {
+  id             String       @id @default(uuid()) @db.Uuid
+  adUpn          String       @unique @db.VarChar(256) // AD userPrincipalName
+  displayName    String       @db.VarChar(200)
+  role           String       @db.VarChar(20) // ADMIN | MANAGER | LEADER | MEMBER
+  concurrentCap  Int          @default(5) // max open tickets held at once
+  active         Boolean      @default(true)
+  shifts         Shift[]
+  assignments    Assignment[]
+  currentTickets Ticket[]     @relation("CurrentAssignee")
+  createdAt      DateTime     @default(now())
+}
+
+/// A scheduled shift window. This may instead be implemented as a VIEW onto the
+/// leave/WFH scheduler's tables (same SQL Server) so availability lives in one
+/// place — kept as a table here so the allocator can answer "on shift now?"
+/// without a cross-app call if you prefer.
+model Shift {
+  id       String   @id @default(uuid()) @db.Uuid
+  agentId  String   @db.Uuid
+  agent    Agent    @relation(fields: [agentId], references: [id])
+  startsAt DateTime
+  endsAt   DateTime
+
+  @@index([agentId, startsAt, endsAt])
+}
+
+/// SLA matrix: ticket type -> time budget. `businessHoursOnly` selects the clock
+/// (business hours vs. calendar hours). This is config the ingestion/creation
+/// path reads to stamp a ticket's dueAt; it is not linked to Ticket by FK.
+model SlaRule {
+  id                String  @id @default(uuid()) @db.Uuid
+  ticketType        String  @unique @db.VarChar(100)
+  slaMinutes        Int
+  businessHoursOnly Boolean @default(true)
+  active            Boolean @default(true)
+}
+
+/// A unit of work. `receivedAt` starts the SLA clock; `dueAt` is computed at
+/// creation from receivedAt + the SLA rule (see computeDueAt in the engine).
+/// `externalRef` (email conversation/message id) dedupes and threads inbound mail.
+/// Stop-the-clock: while ON_HOLD, `onHoldSince` is set; on resume, elapsed hold
+/// time is added to `holdAccumulatedMinutes` and dueAt is pushed out accordingly.
+model Ticket {
+  id                    String       @id @default(uuid()) @db.Uuid
+  source                String       @db.VarChar(20) // EMAIL | MANUAL
+  externalRef           String?      @unique @db.VarChar(400)
+  subject               String       @db.VarChar(400)
+  body                  String?      @db.Text
+  ticketType            String       @db.VarChar(100) // snapshot; matches an SlaRule.ticketType
+  receivedAt            DateTime
+  dueAt                 DateTime
+  status                String       @db.VarChar(20) // NEW | ASSIGNED | IN_PROGRESS | ON_HOLD | RESOLVED | CLOSED
+  currentAssignee       Agent?       @relation("CurrentAssignee", fields: [currentAssigneeId], references: [id])
+  currentAssigneeId     String?      @db.Uuid
+  onHoldSince           DateTime?
+  holdAccumulatedMinutes Int         @default(0)
+  holdReason            String?      @db.VarChar(400)
+  resolvedAt            DateTime?
+  closedAt              DateTime?
+  assignments           Assignment[]
+  events                AuditLog[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@index([status, dueAt, receivedAt]) // supports the priority-banded FIFO queue read
+}
+
+/// Assignment history — one row per time a ticket is given to an agent, so
+/// reassignments are a trail rather than an overwrite. `unassignedAt` closes a row.
+model Assignment {
+  id           String    @id @default(uuid()) @db.Uuid
+  ticketId     String    @db.Uuid
+  ticket       Ticket    @relation(fields: [ticketId], references: [id])
+  agentId      String    @db.Uuid
+  // NoAction breaks the cascade cycle Agent -> Ticket -> Assignment vs
+  // Agent -> Assignment. SQL Server rejects multiple cascade paths, and
+  // Prisma refuses to generate without this. Semantically right too: an
+  // agent with assignment history must not be deletable (use `active`).
+  agent        Agent     @relation(fields: [agentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  reason       String    @db.VarChar(20) // AUTO | MANUAL_OVERRIDE | HANDOVER | REASSIGN
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+
+  @@index([ticketId])
+  @@index([agentId, unassignedAt])
+}
+
+/// Immutable audit trail: every ticket event with actor, timestamp, and an
+/// optional before/after JSON blob. `actor` is an AD upn or the literal "SYSTEM".
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String?  @db.Uuid
+  ticket      Ticket?  @relation(fields: [ticketId], references: [id])
+  actor       String   @db.VarChar(256)
+  event       String   @db.VarChar(40) // CREATED | ASSIGNED | REASSIGNED | UNASSIGNED | STARTED |
+  //                                   // HELD | RESUMED | RESOLVED | REOPENED | CLOSED | OVERRIDE
+  //                                   // (vocabulary enforced in src/lib/domain/constants.ts)
+  detailsJson String?  @db.Text // before/after payload
+  at          DateTime @default(now())
+
+  @@index([ticketId, at])
+}
+
+/// A watched shared mailbox. `platform` decides which adapter the worker uses.
+model MailboxConfig {
+  id       String          @id @default(uuid()) @db.Uuid
+  address  String          @unique @db.VarChar(256)
+  platform String          @db.VarChar(20) // EXCHANGE_ONPREM | M365_GRAPH | IMAP
+  active   Boolean         @default(true)
+  rules    IngestionRule[]
+}
+
+/// Rules that map an inbound email to a ticket type (which in turn sets the SLA).
+/// Evaluated in `ruleOrder`; first match wins. Start simple, refine later.
+model IngestionRule {
+  id         String        @id @default(uuid()) @db.Uuid
+  mailboxId  String        @db.Uuid
+  mailbox    MailboxConfig @relation(fields: [mailboxId], references: [id])
+  matchKind  String        @db.VarChar(20) // SENDER_DOMAIN | SUBJECT_KEYWORD | TO_ADDRESS
+  matchValue String        @db.VarChar(256)
+  ticketType String        @db.VarChar(100)
+  ruleOrder  Int           @default(100)
+
+  @@index([mailboxId, ruleOrder])
+}

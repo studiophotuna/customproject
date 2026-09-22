@@ -14,7 +14,12 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
-    "check:core": "tsx scripts/check-core.ts"
+    "check:core": "tsx scripts/check-core.ts",
+    "pg:schema": "tsx scripts/gen-postgres-schema.ts",
+    "pg:generate": "npm run pg:schema && prisma generate --schema prisma/postgres/schema.prisma",
+    "pg:deploy": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
+    "pg:migrate": "prisma migrate dev --schema prisma/postgres/schema.prisma",
+    "pg:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

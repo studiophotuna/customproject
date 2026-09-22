@@ -21,11 +21,25 @@ const prisma = new PrismaClient();
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "(local)", "host.docker.internal"];
 
+/** Pull the host out of either connection-string shape. */
+function databaseHost(url: string): string {
+  // sqlserver://host:1433;database=...;user=... — semicolon-delimited, not a URL.
+  if (/^sqlserver:/i.test(url)) {
+    return url.replace(/^sqlserver:\/\//i, "").split(/[;:,\\]/)[0];
+  }
+  // postgresql://user:pass@host:5432/db
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
 function assertLocalDatabase(): void {
   const url = process.env.DATABASE_URL ?? "";
   if (process.env.SEED_ALLOW_NONLOCAL === "1") return;
 
-  const host = url.replace(/^sqlserver:\/\//i, "").split(/[;:,\\]/)[0];
+  const host = databaseHost(url);
   if (!LOCAL_HOSTS.includes(host.toLowerCase())) {
     throw new Error(
       `Refusing to seed: DATABASE_URL host "${host}" is not local. ` +

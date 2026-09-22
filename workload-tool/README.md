@@ -168,6 +168,53 @@ matching, so writing a real EWS/IMAP or Graph adapter changes nothing upstream.
 existing scheduler's tables in the same SQL Server instance — add a
 `sqlScheduler` and select it in `getScheduler()`.
 
+### Running on Postgres / Supabase
+
+SQL Server on-prem is the production target. Postgres is supported as a **second
+target** for a hosted demo or staging environment — not as a replacement, and
+not as a fork.
+
+`prisma/schema.prisma` stays the single source of truth.
+`prisma/postgres/schema.prisma` is **generated** from it by
+`scripts/gen-postgres-schema.ts`, which changes only the connector-specific
+parts (`provider`, `directUrl`, and the four native-type mappings). Never edit
+the generated file: change the source and re-run `npm run pg:schema`.
+
+```bash
+# set DATABASE_URL and DIRECT_URL to the Postgres connection strings first
+npm run pg:generate    # regenerate the variant schema + Prisma Client
+npm run pg:deploy      # apply prisma/postgres/migrations
+SEED_ALLOW_NONLOCAL=1 npm run pg:seed
+```
+
+Both targets generate the Prisma Client to the same place, so **whichever you
+generated last is the active one**. Switch back with `npm run db:generate`.
+
+Four things to know before pointing this at Supabase:
+
+1. **Use the session-mode connection (`:5432`), not the transaction-mode pooler
+   (`:6543`).** The four interactive transactions in `lifecycle.ts`, `run.ts`,
+   `tickets.ts` and `leader/actions.ts` are what guarantee a ticket cannot move
+   without its audit row committing alongside it. Interactive transactions do
+   not work reliably through a transaction-mode pooler, and the failures would
+   land exactly on the audit-integrity path.
+2. **Postgres is case-sensitive; SQL Server's default collation is not.** AD
+   issues UPNs like `First.Last@CONTOSO.LOCAL`. The auth providers lowercase
+   before the `adUpn` lookup and the seed stores lowercase, so this holds — but
+   any new code path that forgets will fail on Postgres while working on
+   SQL Server.
+3. **Row Level Security is off on Prisma-created tables**, and Prisma connects
+   as a role that bypasses it. A Supabase database is internet-reachable, so a
+   leaked connection string is full read/write on internal work requests.
+   Add RLS policies or network restrictions before this holds anything real.
+4. **It does not change authentication.** Supabase replaces the database only.
+   Auth is still `iis` or `dev`, and dev mode refuses to start under
+   `NODE_ENV=production` — so this alone does not make the app publicly
+   viewable.
+
+This is a deliberate exception to the "no third-party data stores" constraint in
+the brief, for demo/staging use. Production stays on-prem SQL Server.
+
 ### SLA clock
 
 `dueAt` is computed once at creation and stored, so later edits to the SLA
@@ -191,6 +238,8 @@ Going ON_HOLD stops the clock: the elapsed hold is added to
 | `npm run db:seed` | reseed local dev data (destructive; refuses non-local hosts) |
 | `npm run db:reset` | drop, re-migrate, reseed |
 | `npm run check:core` | engine / SLA / lifecycle / role checks, no database needed |
+| `npm run pg:schema` | regenerate the Postgres schema variant from the source schema |
+| `npm run pg:generate` / `pg:deploy` / `pg:seed` | the same flow against Postgres/Supabase |
 | `npm run lint` | ESLint |
 
 ## Deviations from the supplied foundation
